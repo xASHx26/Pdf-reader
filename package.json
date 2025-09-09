@@ -1,0 +1,31 @@
+{
+  "name": "pdf-reader-flask",
+  "version": "1.0.0",
+  "description": "A modern PDF reader with audio controls and Flask backend",
+  "main": "app.py",
+  "scripts": {
+    "dev": "python app.py",
+    "start": "python app.py",
+    "install-python": "pip install -r requirements.txt",
+    "static-dev": "npx http-server -p 3000"
+  },
+  "keywords": [
+    "pdf",
+    "reader",
+    "audio",
+    "flask",
+    "python",
+    "backend",
+    "javascript",
+    "frontend"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8.0"
+  }
+}

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Text-to-Speech Reader</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}?v=16&t={{ timestamp }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>PDF Reader <span class="server-badge">Text-to-Speech</span></h1>
+            <div class="header-controls">
+                <label for="file-input" class="file-input-label">
+                    <input type="file" id="file-input" accept=".pdf" title="Select PDF file">
+                </label>
+                <button id="openPdfBtn" class="btn btn-primary">Open PDF</button>
+                <button id="historyBtn" class="btn btn-secondary">History</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- PDF Viewer Section -->
+            <div class="pdf-section">
+                <div id="pdfViewer" class="pdf-viewer">
+                    <div class="welcome-message">
+                        <h2>Welcome to PDF Text-to-Speech Reader</h2>
+                        <p>Click "Open PDF" to start reading a PDF file with voice</p>
+                        <div class="server-info">
+                            <p><strong>🎵 Text-to-Speech PDF Reader</strong></p>
+                            <p>Upload a PDF and it will automatically read aloud with sentence navigation</p>
+                        </div>
+                        <div class="feature-list">
+                            <ul>
+                                <li>✓ View PDF files locally</li>
+                                <li>✓ Automatic text-to-speech reading</li>
+                                <li>✓ Sentence-by-sentence navigation</li>
+                                <li>✓ Voice speed and pitch controls</li>
+                                <li>✓ Reading history storage</li>
+                                <li>✓ Browser-based voices (no audio files needed)</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div id="pdf-container" class="pdf-container hidden">
+                        <canvas id="pdf-canvas"></canvas>
+                        <div id="text-layer" class="text-layer"></div>
+                    </div>
+                    <div class="zoom-controls">
+                        <button id="zoom-out" class="btn">−</button>
+                        <span id="zoom-level">100%</span>
+                        <button id="zoom-in" class="btn">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text-to-Speech Controls Section -->
+            <div class="tts-section">
+                <div class="tts-controls">
+                    <h3>🎤 Text-to-Speech Reader</h3>
+                    <div class="tts-player">
+                        <div class="tts-buttons">
+                            <button id="readBtn" class="tts-btn">
+                                <span class="icon">▶</span>
+                                Start Reading
+                            </button>
+                            <button id="pauseReadBtn" class="tts-btn">
+                                <span class="icon">⏸</span>
+                                Pause
+                            </button>
+                            <button id="stopReadBtn" class="tts-btn">
+                                <span class="icon">⏹</span>
+                                Stop
+                            </button>
+                            <button id="nextSentenceBtn" class="tts-btn">
+                                <span class="icon">⏭</span>
+                                Next Sentence
+                            </button>
+                            <button id="prevSentenceBtn" class="tts-btn">
+                                <span class="icon">⏮</span>
+                                Previous Sentence
+                            </button>
+                        </div>
+                        
+                        <div class="tts-info">
+                            <div class="reading-progress">
+                                <div id="currentSentence" class="sentence-info">No text loaded</div>
+                                <div class="progress-bar">
+                                    <div id="readingProgressBar" class="progress-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tts-settings">
+                            <div class="voice-control">
+                                <label for="voiceSelect">Voice:</label>
+                                <select id="voiceSelect" class="voice-selector">
+                                    <option>Loading voices...</option>
+                                </select>
+                            </div>
+                            
+                            <div class="speed-control">
+                                <label for="speechRate">Speed:</label>
+                                <input type="range" id="speechRate" min="0.5" max="2" value="1" step="0.1">
+                                <span id="speedDisplay">1.0x</span>
+                            </div>
+                            
+                            <div class="pitch-control">
+                                <label for="speechPitch">Pitch:</label>
+                                <input type="range" id="speechPitch" min="0.5" max="2" value="1" step="0.1">
+                                <span id="pitchDisplay">1.0x</span>
+                            </div>
+                            
+                            <div class="volume-control">
+                                <label for="speechVolume">Volume:</label>
+                                <input type="range" id="speechVolume" min="0" max="1" value="0.8" step="0.1">
+                                <span id="volumeDisplay">80%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- History Modal -->
+        <div id="historyModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Reading History</h2>
+                    <button id="closeHistoryBtn" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyList" class="history-list">
+                        Loading history...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Immediate modal hide to prevent flashing
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('historyModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
+    
+    <!-- Main Application Script -->
+    <script src="{{ url_for('static', filename='script_simple.js') }}?v=16&t={{ timestamp }}"></script>
+</body>
+</html>
