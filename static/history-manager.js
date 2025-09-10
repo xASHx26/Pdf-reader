@@ -33,13 +33,31 @@ const HistoryManager = {
     addToHistory(item) {
         const history = this.getHistory();
         
-        // Create new entry
+        // Create new entry with proper time formatting
+        const now = new Date();
         const newEntry = {
             id: Date.now(),
             name: item.name,
             size: item.size,
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toTimeString().split(' ')[0],
+            date: now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            }),
+            time: now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            }),
+            lastPlayed: now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            }),
+            timestamp: now.getTime(),
             ...item
         };
         
@@ -55,7 +73,7 @@ const HistoryManager = {
         // Save to localStorage
         this.saveHistory(trimmedHistory);
         
-        console.log('✅ Added to localStorage history:', newEntry.name);
+        console.log('✅ Added to localStorage history:', newEntry.name, 'at', newEntry.lastPlayed);
         return newEntry;
     },
     

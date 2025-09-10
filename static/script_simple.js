@@ -1323,30 +1323,40 @@ function initializeVoiceControls() {
     console.log('✅ Enhanced voice controls initialized');
 }
 
-// History functions
+// History functions - Updated to use localStorage
 async function saveToHistory(fileName, fileSize, file = null, loadedFromLocal = false) {
     try {
-        console.log('💾 Saving to history:', fileName);
+        console.log('💾 Saving to localStorage history:', fileName);
         
-        // Check if file exists in local storage
-        // Save to history without local storage references
-        const historyItem = {
-            name: fileName,
-            size: formatFileSize(fileSize),
-            lastPlayed: new Date().toLocaleString(),
-            progress: {
-                lastPlayedLine: window.currentSentenceIndex + 1 || 0,
-                totalLines: window.totalSentences || 0,
-                remainingTime: window.totalSentences ? Math.max(0, (window.totalSentences - (window.currentSentenceIndex + 1)) * 4) : 0,
-                completedPercentage: window.totalSentences ? Math.round(((window.currentSentenceIndex + 1) / window.totalSentences) * 100) : 0
-            }
-        };
+        // Use the HistoryManager from history-manager.js
+        if (window.HistoryManager) {
+            const historyItem = {
+                name: fileName,
+                size: fileSize,
+                lastPlayed: new Date().toLocaleString(),
+                timestamp: Date.now(),
+                progress: {
+                    lastPlayedLine: window.currentSentenceIndex + 1 || 0,
+                    totalLines: window.sentences ? window.sentences.length : 0,
+                    completedPercentage: window.sentences ? Math.round(((window.currentSentenceIndex + 1) / window.sentences.length) * 100) : 0
+                }
+            };
+            
+            window.HistoryManager.addToHistory(historyItem);
+            console.log('✅ Successfully saved to localStorage history');
+        } else {
+            console.warn('⚠️ HistoryManager not available, falling back to server');
+            // Fallback to server (which now just acknowledges)
+            const response = await fetch('/api/history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: fileName, size: fileSize })
+            });
+        }
         
-        const response = await fetch('/api/history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(historyItem)
-        });
+    } catch (error) {
+        console.error('❌ Error saving to history:', error);
+    }
         
         if (response.ok) {
             console.log('✅ Saved to history successfully');
@@ -1638,15 +1648,21 @@ function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-// Enhanced load and display history with reading progress
+// Enhanced load and display history with reading progress - Updated for localStorage
 async function loadAndShowHistory() {
     try {
-        console.log('📚 Loading reading history...');
+        console.log('📚 Loading reading history from localStorage...');
         
-        const response = await fetch('/api/history');
-        const history = await response.json();
-        
-        console.log('📋 History loaded:', history.length, 'items');
+        // Get history from localStorage using HistoryManager
+        let history = [];
+        if (window.HistoryManager) {
+            history = window.HistoryManager.getHistory();
+            console.log('📋 LocalStorage history loaded:', history.length, 'items');
+        } else {
+            console.warn('⚠️ HistoryManager not available, falling back to server');
+            const response = await fetch('/api/history');
+            history = await response.json();
+        }
         
         const historyModal = document.getElementById('historyModal');
         const historyList = document.getElementById('historyList');
@@ -1667,8 +1683,15 @@ async function loadAndShowHistory() {
                 `;
             } else {
                 historyList.innerHTML = history.map((item, index) => {
-                    const progress = item.progress || { lastPlayedLine: 0, totalLines: 0, remainingTime: 0, completedPercentage: 0 };
-                    const loadStatus = item.loadStatus || { locallyAvailable: false, lastLoadMethod: 'upload', localPath: null };
+                    const progress = item.progress || { lastPlayedLine: 0, totalLines: 0, completedPercentage: 0 };
+                    
+                    // Format file size
+                    const fileSize = typeof item.size === 'number' ? formatFileSize(item.size) : item.size;
+                    
+                    // Format the date/time
+                    const lastPlayed = item.lastPlayed || item.time ? 
+                        `${item.date || 'Unknown date'} at ${item.time || 'Unknown time'}` : 
+                        'Never played';
                     
                     // Check if this is the currently loaded PDF
                     const isCurrentPDF = window.currentPDF && window.currentPDF.fileName === item.name;
@@ -1680,7 +1703,6 @@ async function loadAndShowHistory() {
                         currentProgress = {
                             lastPlayedLine: window.currentSentenceIndex + 1,
                             totalLines: window.sentences.length,
-                            remainingTime: (window.sentences.length - window.currentSentenceIndex) * 3, // estimate 3 seconds per sentence
                             completedPercentage: currentPercentage
                         };
                     }
@@ -1693,11 +1715,38 @@ async function loadAndShowHistory() {
                             <span class="progress-text">${currentProgress.completedPercentage}%</span>
                         </div>` : '';
                     
-                    const loadStatusIndicator = '';
-                    
-                    const loadButton = '';
-                    
-                    // Show current status instead of "Never played"
+                    return `
+                        <div class="history-item" data-index="${index}">
+                            <div class="history-item-header">
+                                <div class="history-item-info">
+                                    <h3 class="history-item-title">${item.name}</h3>
+                                    <div class="history-item-meta">
+                                        <span class="file-size">📄 ${fileSize}</span>
+                                        <span class="last-played">🕒 ${lastPlayed}</span>
+                                        ${isCurrentPDF ? '<span class="current-indicator">▶️ Currently Loaded</span>' : ''}
+                                    </div>
+                                    ${progressBar}
+                                    ${currentProgress.totalLines > 0 ? 
+                                        `<p class="progress-details">Sentence ${currentProgress.lastPlayedLine} of ${currentProgress.totalLines}</p>` : 
+                                        '<p class="progress-details">📝 Not started yet</p>'
+                                    }
+                                </div>
+                                <div class="history-item-actions">
+                                    <button class="delete-btn" onclick="deleteFromHistory(${index})" title="Delete from history">
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading history:', error);
+        alert('Error loading history: ' + error.message);
+    }
                     const playStatus = isCurrentPDF ? 
                         `📍 Currently reading - Line ${currentProgress.lastPlayedLine}` :
                         (currentProgress.totalLines > 0 ? 
@@ -1928,27 +1977,72 @@ function resetWelcomeMessage() {
     }
 }
 
-// Delete individual item from history
+// Delete individual item from history - Updated for localStorage
 async function deleteFromHistory(index) {
-    console.log('🗑️ Deleting item from history, index:', index);
+    console.log('🗑️ Deleting item from localStorage history, index:', index);
     
     try {
-        // Get current history
-        const response = await fetch('/api/history');
-        const history = await response.json();
+        // Use HistoryManager for localStorage
+        if (window.HistoryManager) {
+            const history = window.HistoryManager.getHistory();
+            
+            if (index >= 0 && index < history.length) {
+                const itemToDelete = history[index];
+                
+                // Confirm deletion
+                const confirmDelete = confirm(
+                    `Are you sure you want to delete "${itemToDelete.name}" from your reading history?`
+                );
+                
+                if (confirmDelete) {
+                    // Delete the item from localStorage
+                    window.HistoryManager.deleteItem(index);
+                    
+                    console.log('✅ Item deleted successfully from localStorage');
+                    // Reload history display
+                    await loadAndShowHistory();
+                    
+                    // Show success notification
+                    if (window.showNotification) {
+                        window.showNotification('📚 History item deleted successfully!', 'success');
+                    }
+                }
+            } else {
+                throw new Error('Invalid history index');
+            }
+        } else {
+            // Fallback to server method
+            console.warn('⚠️ HistoryManager not available, using server fallback');
+            const response = await fetch('/api/history');
+            const history = await response.json();
+            
+            if (index >= 0 && index < history.length) {
+                const itemToDelete = history[index];
+                
+                const confirmDelete = confirm(
+                    `Are you sure you want to delete "${itemToDelete.name}" from your reading history?`
+                );
+                
+                if (confirmDelete) {
+                    const deleteResponse = await fetch(`/api/history/${index}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (deleteResponse.ok) {
+                        console.log('✅ Item deleted successfully');
+                        await loadAndShowHistory();
+                    } else {
+                        console.error('❌ Failed to delete item');
+                        alert('Failed to delete item from history');
+                    }
+                }
+            }
+        }
         
-        if (index >= 0 && index < history.length) {
-            const itemToDelete = history[index];
-            
-            // Confirm deletion
-            const confirmDelete = confirm(
-                `Are you sure you want to delete "${itemToDelete.name}" from your reading history?`
-            );
-            
-            if (confirmDelete) {
-                // Delete the item
-                const deleteResponse = await fetch(`/api/history/${index}`, {
-                    method: 'DELETE'
+    } catch (error) {
+        console.error('❌ Error deleting from history:', error);
+        alert('Error deleting from history: ' + error.message);
+    }
                 });
                 
                 if (deleteResponse.ok) {
