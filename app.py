@@ -18,12 +18,20 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 @app.route('/')
 def index():
     """Serve the main PDF reader page"""
-    timestamp = str(int(time.time()))
-    response = make_response(render_template('index_new.html', timestamp=timestamp))
-    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
-    return response
+    try:
+        timestamp = str(int(time.time()))
+        response = make_response(render_template('index_new.html', timestamp=timestamp))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+    except Exception as e:
+        return f"Error loading template: {str(e)}", 500
+
+@app.route('/health')
+def health():
+    """Simple health check"""
+    return jsonify({"status": "ok", "message": "PDF Reader is running!"})
 
 @app.route('/static/<path:filename>')
 def static_files(filename):
@@ -209,5 +217,9 @@ if __name__ == '__main__':
         threaded=True
     )
 
-# For Vercel deployment
+# For Vercel deployment - export the app
+def handler(request):
+    return app(request.environ, request.start_response)
+
+# Alternative Vercel handler
 app_handler = app
