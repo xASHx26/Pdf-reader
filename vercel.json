@@ -2,14 +2,18 @@
   "version": 2,
   "builds": [
     {
-      "src": "index.html",
-      "use": "@vercel/static"
+      "src": "app.py",
+      "use": "@vercel/python"
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "dest": "/app.py"
     }
   ],
   "headers": [
@@ -35,5 +39,8 @@
         }
       ]
     }
-  ]
+  ],
+  "env": {
+    "PYTHONPATH": "./"
+  }
 }

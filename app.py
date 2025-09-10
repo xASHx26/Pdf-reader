@@ -208,3 +208,6 @@ if __name__ == '__main__':
         port=5000,
         threaded=True
     )
+
+# For Vercel deployment
+app_handler = app

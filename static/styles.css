@@ -240,11 +240,12 @@ label[for="progressBar"] {
     flex: 1;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     background: #f7fafc;
     border-radius: 10px;
     overflow: auto;
-    min-height: 400px;
+    min-height: 600px;
+    padding: 10px;
 }
 
 .welcome-message {
@@ -272,6 +273,16 @@ label[for="progressBar"] {
     max-width: 100%;
     max-height: 100%;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+#highlight-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    max-width: 100%;
+    max-height: 100%;
+    pointer-events: none;
+    z-index: 5;
 }
 
 .pdf-container {
@@ -426,6 +437,59 @@ button:disabled {
 
 .history-item:hover .reload-hint {
     opacity: 1;
+}
+
+/* Progress Bar Styles */
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 6px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: #22c55e;
+    min-width: 35px;
+}
+
+.reading-progress {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #666;
+}
+
+.progress-info {
+    color: #4a90e2;
+}
+
+.time-info {
+    color: #f59e0b;
+}
+
+.no-progress {
+    font-size: 11px;
+    color: #9ca3af;
+    font-style: italic;
+    margin-top: 4px;
 }
 
 .reload-icon {
@@ -749,6 +813,28 @@ button:disabled {
     margin: 0;
 }
 
+.modal-header-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.clear-history-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.clear-history-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
 .close-btn {
     background: none;
     border: none;
@@ -900,5 +986,95 @@ button:disabled {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #3182ce;
+    background: #357abd;
+}
+
+/* Title Percentage Display */
+.title-percentage {
+    color: #4CAF50;
+    font-size: 0.8em;
+    font-weight: normal;
+    margin-left: 10px;
+}
+
+.title-progress-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 15px;
+    vertical-align: middle;
+}
+
+.title-progress-bar {
+    width: 80px;
+    height: 8px;
+    background-color: rgba(76, 175, 80, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.title-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50 0%, #66BB6A 100%);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 1px 3px rgba(76, 175, 80, 0.3);
+}
+
+.title-percentage-text {
+    color: #4CAF50;
+    font-size: 0.7em;
+    font-weight: 600;
+    min-width: 30px;
+    text-align: center;
+}
+
+/* Footer styles */
+.footer {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    margin-top: 30px;
+    font-size: 0.9em;
+    border-radius: 10px;
+}
+
+.footer p {
+    margin: 0;
+    font-weight: 500;
+}
+
+/* Local Storage Notification */
+#local-storage-notification {
+    animation: slideInRight 0.3s ease-out;
+}
+
+#local-storage-notification:hover {
+    transform: translateX(-5px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Local Storage Status Indicator */
+#local-storage-status {
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+#local-storage-status:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }

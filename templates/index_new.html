@@ -27,30 +27,21 @@
             <div class="pdf-section">
                 <div id="pdfViewer" class="pdf-viewer">
                     <div class="welcome-message">
-                        <h2>Welcome to PDF Text-to-Speech Reader</h2>
-                        <p>Click "Open PDF" to start reading a PDF file with voice</p>
+                        <h2>PDF Reader & Text-to-Speech</h2>
+                        <p>View and listen to your PDF documents</p>
                         <div class="server-info">
-                            <p><strong>🎵 Text-to-Speech PDF Reader</strong></p>
-                            <p>Upload a PDF and it will automatically read aloud with sentence navigation</p>
-                        </div>
-                        <div class="feature-list">
-                            <ul>
-                                <li>✓ View PDF files locally</li>
-                                <li>✓ Automatic text-to-speech reading</li>
-                                <li>✓ Sentence-by-sentence navigation</li>
-                                <li>✓ Voice speed and pitch controls</li>
-                                <li>✓ Reading history storage</li>
-                                <li>✓ Browser-based voices (no audio files needed)</li>
-                            </ul>
+                            <p><strong>🎵 PDF Text-to-Speech Website</strong></p>
+                            <p>Upload a PDF and enjoy hands-free reading with voice narration</p>
                         </div>
                     </div>
                     <div id="pdf-container" class="pdf-container hidden">
                         <canvas id="pdf-canvas"></canvas>
+                        <canvas id="highlight-canvas"></canvas>
                         <div id="text-layer" class="text-layer"></div>
                     </div>
                     <div class="zoom-controls">
                         <button id="zoom-out" class="btn">−</button>
-                        <span id="zoom-level">100%</span>
+                        <span id="zoom-level">150%</span>
                         <button id="zoom-in" class="btn">+</button>
                     </div>
                 </div>
@@ -59,7 +50,14 @@
             <!-- Text-to-Speech Controls Section -->
             <div class="tts-section">
                 <div class="tts-controls">
-                    <h3>🎤 Text-to-Speech Reader</h3>
+                    <h3>🎤 Text-to-Speech Reader 
+                        <div class="title-progress-container">
+                            <div class="title-progress-bar">
+                                <div id="titleProgressFill" class="title-progress-fill"></div>
+                            </div>
+                            <span id="titlePercentage" class="title-percentage-text">0%</span>
+                        </div>
+                    </h3>
                     <div class="tts-player">
                         <div class="tts-buttons">
                             <button id="readBtn" class="tts-btn">
@@ -129,7 +127,10 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Reading History</h2>
-                    <button id="closeHistoryBtn" class="close-btn">&times;</button>
+                    <div class="modal-header-buttons">
+                        <button id="clearHistoryBtn" class="clear-history-btn">Clear All</button>
+                        <button id="closeHistoryBtn" class="close-btn">&times;</button>
+                    </div>
                 </div>
                 <div class="modal-body">
                     <div id="historyList" class="history-list">
@@ -139,6 +140,11 @@
             </div>
         </div>
     </div>
+
+    <!-- Footer with Copyright -->
+    <footer class="footer">
+        <p>&copy; M.A Habib Siyam</p>
+    </footer>
 
     <script>
         // Immediate modal hide to prevent flashing

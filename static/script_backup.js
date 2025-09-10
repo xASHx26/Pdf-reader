@@ -34,7 +34,67 @@ let isPaused = false;
 let currentSentenceIndex = 0;
 let sentences = [];
 
-function cleanupPreviousSession() {
+// 📁 Local Storage Configuration
+const LOCAL_STORAGE_CONFIG = {
+    enabled: true,
+    basePath: 'C:/pdfs/',
+    maxRetries: 2,
+    retryDelay: 1000
+};
+
+// 📁 Local Storage Helper Functions
+async function checkLocalStorageFile(fileName) {
+    if (!LOCAL_STORAGE_CONFIG.enabled || !fileName) return null;
+    
+    try {
+        const filePath = LOCAL_STORAGE_CONFIG.basePath + fileName;
+        console.log('🔍 Checking local storage for:', filePath);
+        
+        // Try to fetch the file from local storage path
+        const response = await fetch(`file:///${filePath.replace(/\\/g, '/')}`);
+        if (response.ok) {
+            console.log('✅ Found file in local storage:', fileName);
+            return await response.arrayBuffer();
+        }
+    } catch (error) {
+        console.log('💾 File not found in local storage:', fileName);
+    }
+    
+    return null;
+}
+
+function showLocalStorageMessage(fileName) {
+    const message = `
+📁 Local Storage Setup Recommended
+
+For faster loading, consider placing your PDFs in:
+C:/pdfs/
+
+Create this folder structure:
+C:/
+└── pdfs/
+    ├── ${fileName}
+    └── your-other-pdfs.pdf
+
+Benefits:
+🚀 Faster loading from history
+💾 No server storage needed  
+🔒 Your files stay private
+📱 Works offline
+
+This is optional - the app works without it!
+    `;
+    
+    console.log(message);
+    
+    // Create a subtle notification instead of alert
+    createLocalStorageNotification();
+}
+
+function createLocalStorageNotification() {
+    // Remove existing notification if any
+    const existing = document.getElementById('local-storage-notification');
+    if (existing) existing.remove();
     
     const notification = document.createElement('div');
     notification.id = 'local-storage-notification';
@@ -231,6 +291,95 @@ function cleanupPreviousSession() {
     console.log('✅ Cleanup completed');
 }
 
+// 📁 Load PDF from local storage function
+async function loadFromLocalStorage(fileName, historyIndex) {
+    try {
+        console.log('⚡ Loading from local storage:', fileName);
+        
+        // Close history modal
+        const historyModal = document.getElementById('historyModal');
+        if (historyModal) {
+            historyModal.style.display = 'none';
+        }
+        
+        // Check if file exists in local storage
+        const localStorageBuffer = await checkLocalStorageFile(fileName);
+        
+        if (localStorageBuffer) {
+            // Clean up previous session
+            cleanupPreviousSession();
+            
+            // Hide welcome message and show PDF container
+            const welcomeMessage = document.querySelector('.welcome-message');
+            const pdfContainer = document.getElementById('pdf-container');
+            
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'none';
+            }
+            
+            if (pdfContainer) {
+                pdfContainer.classList.remove('hidden');
+                pdfContainer.style.display = 'block';
+            }
+            
+            // Load PDF with PDF.js
+            const pdf = await pdfjsLib.getDocument(localStorageBuffer).promise;
+            const page = await pdf.getPage(1);
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set up viewport and render
+            const viewport = page.getViewport({ scale: currentZoom });
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            await page.render({
+                canvasContext: ctx,
+                viewport: viewport
+            }).promise;
+            
+            // Extract text for TTS
+            const textContent = await page.getTextContent();
+            const textItems = textContent.items.map((item, index) => ({
+                text: item.str,
+                x: item.transform[4],
+                y: item.transform[5],
+                width: item.width || (item.str.length * 8),
+                height: item.height || 12,
+                fontSize: item.transform[0] || 12,
+                index: index
+            }));
+            
+            const fullText = textItems.map(item => item.text).join('');
+            
+            // Store references
+            window.currentPDF = {
+                canvas: canvas,
+                textItems: textItems,
+                fullText: fullText,
+                page: page
+            };
+            
+            // Initialize TTS
+            if (fullText.trim()) {
+                initializeTTS(fullText, textItems, canvas);
+            }
+            
+            // Initialize zoom controls
+            initializeZoomControls();
+            
+            console.log('✅ PDF loaded from local storage successfully');
+            
+        } else {
+            alert(`File "${fileName}" not found in C:/pdfs/ folder. Please place the file there for fast loading.`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading from local storage:', error);
+        alert('Error loading from local storage: ' + error.message);
+    }
+}
+
 // Simple initialization
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎯 DOM Content Loaded - Starting Initialization');
@@ -337,15 +486,34 @@ async function loadPDFFile(file) {
             console.log('✅ PDF container shown');
         }
 
-        // Convert file to array buffer
-        console.log('🔄 Converting file to array buffer...');
-        const arrayBuffer = await file.arrayBuffer();
+        let arrayBuffer;
+        let loadedFromLocalStorage = false;
+
+        // 📁 Try to load from local storage first
+        console.log('🔍 Checking local storage for faster loading...');
+        const localStorageBuffer = await checkLocalStorageFile(file.name);
+        
+        if (localStorageBuffer) {
+            arrayBuffer = localStorageBuffer;
+            loadedFromLocalStorage = true;
+            console.log('⚡ Loaded from local storage - faster loading!');
+        } else {
+            // Convert file to array buffer (slower method)
+            console.log('🔄 Converting file to array buffer...');
+            arrayBuffer = await file.arrayBuffer();
+            
+            // Show local storage suggestion (only once per session)
+            if (!sessionStorage.getItem('localStorageShown')) {
+                showLocalStorageMessage(file.name);
+                sessionStorage.setItem('localStorageShown', 'true');
+            }
+        }
         
         // Load PDF with PDF.js
         console.log('📚 Loading PDF with PDF.js...');
         const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
         console.log('✅ PDF loaded successfully! Pages:', pdf.numPages);
-        console.log('📊 Load method: File Input (Standard)');
+        console.log('📊 Load method:', loadedFromLocalStorage ? 'Local Storage (Fast)' : 'File Input (Standard)');
         
         // Get first page
         const page = await pdf.getPage(1);
@@ -402,7 +570,7 @@ async function loadPDFFile(file) {
         initializeZoomControls();
         
         // Save to history with load status information
-        await saveToHistory(file.name, file.size, file, false);
+        await saveToHistory(file.name, file.size, file, loadedFromLocalStorage);
         
     } catch (error) {
         console.error('❌ Error loading PDF:', error);
@@ -586,17 +754,17 @@ async function loadPDFFromURL(url, fileName) {
 function initializeTTS(text, textItems, canvas) {
     console.log('🎤 Initializing enhanced TTS with text length:', text.length);
     
-    // Split text into sentences with better parsing and store globally
-    window.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-    console.log('📋 Sentences found:', window.sentences.length);
+    // Split text into sentences with better parsing
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    console.log('📋 Sentences found:', sentences.length);
     
     let currentSentenceIndex = 0;
     let currentUtterance = null;
     let estimatedTimePerSentence = 4; // seconds per sentence estimate
     
     // Create both views
-    createTextOverlay(textItems, canvas, window.sentences);
-    createCanvasHighlight(canvas, textItems, window.sentences);
+    createTextOverlay(textItems, canvas, sentences);
+    createCanvasHighlight(canvas, textItems, sentences);
     
     // Add view toggle button
     addViewToggleButton();
@@ -629,30 +797,11 @@ function initializeTTS(text, textItems, canvas) {
     if (readBtn) {
         readBtn.addEventListener('click', () => {
             console.log('▶️ Start reading clicked');
-            
-            // Ensure sentences are available
-            if (!window.sentences || window.sentences.length === 0) {
-                console.warn('⚠️ No sentences available. Trying to reload PDF text...');
-                alert('Please wait for the PDF to fully load, then try again.');
-                return;
-            }
-            
-            if (!isReading) {
-                // Reset to beginning if not already reading
-                currentSentenceIndex = 0;
+            if (sentences.length > 0 && !isReading) {
                 isReading = true;
                 isPaused = false;
-                
-                // Sync global variables
-                window.currentSentenceIndex = currentSentenceIndex;
-                window.isReading = isReading;
-                window.isPaused = isPaused;
-                
-                console.log('🔄 Reading state initialized - isReading:', isReading, 'starting from sentence 1, total sentences:', window.sentences.length);
-                console.log('🎯 First sentence:', window.sentences[0].substring(0, 50) + '...');
-                
                 updateButtonStates();
-                speakSentence(window.sentences[currentSentenceIndex]);
+                speakSentence(sentences[currentSentenceIndex]);
                 updateCurrentSentenceDisplay();
             }
         });
@@ -687,7 +836,7 @@ function initializeTTS(text, textItems, canvas) {
             isReading = false;
             isPaused = false;
             currentSentenceIndex = 0;
-            clearCanvasHighlight();
+            clearAllHighlights();
             updateCurrentSentenceDisplay();
             updateButtonStates();
         });
@@ -696,12 +845,12 @@ function initializeTTS(text, textItems, canvas) {
     // Next Sentence button
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
-            if (currentSentenceIndex < window.sentences.length - 1) {
+            if (currentSentenceIndex < sentences.length - 1) {
                 currentSentenceIndex++;
                 updateCurrentSentenceDisplay();
                 if (isReading) {
                     speechSynthesis.cancel();
-                    speakSentence(window.sentences[currentSentenceIndex]);
+                    speakSentence(sentences[currentSentenceIndex]);
                 }
             }
         });
@@ -715,7 +864,7 @@ function initializeTTS(text, textItems, canvas) {
                 updateCurrentSentenceDisplay();
                 if (isReading) {
                     speechSynthesis.cancel();
-                    speakSentence(window.sentences[currentSentenceIndex]);
+                    speakSentence(sentences[currentSentenceIndex]);
                 }
             }
         });
@@ -742,34 +891,21 @@ function initializeTTS(text, textItems, canvas) {
         highlightSentence(currentSentenceIndex);
         
         utterance.onend = () => {
-            console.log('🔚 Utterance ended. isReading:', isReading, 'isPaused:', isPaused, 'currentIndex:', currentSentenceIndex);
-            
-            if (isReading && !isPaused && currentSentenceIndex < window.sentences.length - 1) {
+            if (isReading && !isPaused && currentSentenceIndex < sentences.length - 1) {
                 currentSentenceIndex++;
-                window.currentSentenceIndex = currentSentenceIndex; // Sync global variable
-                
-                console.log('➡️ Auto-advancing to sentence:', currentSentenceIndex + 1);
+                window.currentTTSInstance.currentSentenceIndex = currentSentenceIndex;
                 updateCurrentSentenceDisplay();
-                
-                // Clear previous highlight
-                clearCanvasHighlight();
-                
-                // Auto-continue with next sentence after brief pause
-                setTimeout(() => {
-                    if (isReading && !isPaused) { // Double check state hasn't changed
-                        speakSentence(window.sentences[currentSentenceIndex]);
-                    }
-                }, 500);
-                
-            } else if (currentSentenceIndex >= window.sentences.length - 1) {
+                setTimeout(() => speakSentence(sentences[currentSentenceIndex]), 300);
+            } else if (currentSentenceIndex >= sentences.length - 1) {
                 // Reading completed
-                console.log('✅ Reading completed!');
                 isReading = false;
                 isPaused = false;
-                window.currentSentenceIndex = currentSentenceIndex;
-                clearCanvasHighlight();
+                window.currentTTSInstance.isReading = false;
+                window.currentTTSInstance.isPaused = false;
+                clearAllHighlights();
                 updateCurrentSentenceDisplay();
                 updateButtonStates();
+                console.log('✅ Reading completed!');
             }
         };
         
@@ -804,7 +940,7 @@ function initializeTTS(text, textItems, canvas) {
     
     function updateCurrentSentenceDisplay() {
         if (currentSentenceDisplay) {
-            const remainingSentences = window.sentences.length - currentSentenceIndex;
+            const remainingSentences = sentences.length - currentSentenceIndex;
             const estimatedTimeRemaining = remainingSentences * estimatedTimePerSentence;
             const minutes = Math.floor(estimatedTimeRemaining / 60);
             const seconds = estimatedTimeRemaining % 60;
@@ -818,7 +954,7 @@ function initializeTTS(text, textItems, canvas) {
                 '⏹️ Stopped';
             
             currentSentenceDisplay.innerHTML = `
-                <div>Sentence ${currentSentenceIndex + 1} of ${window.sentences.length}</div>
+                <div>Sentence ${currentSentenceIndex + 1} of ${sentences.length}</div>
                 <div style="font-size: 12px; color: #666; margin-top: 4px;">
                     ${statusText} • ${timeText}
                 </div>
@@ -827,15 +963,15 @@ function initializeTTS(text, textItems, canvas) {
         
         const progress = document.getElementById('readingProgressBar');
         if (progress) {
-            const percent = ((currentSentenceIndex + 1) / window.sentences.length) * 100;
+            const percent = ((currentSentenceIndex + 1) / sentences.length) * 100;
             progress.style.width = percent + '%';
         }
         
         // Update title progress bar and percentage
         const titleProgressFill = document.getElementById('titleProgressFill');
         const titlePercentage = document.getElementById('titlePercentage');
-        if (titleProgressFill && titlePercentage && window.sentences.length > 0) {
-            const percent = Math.round(((currentSentenceIndex + 1) / window.sentences.length) * 100);
+        if (titleProgressFill && titlePercentage && sentences.length > 0) {
+            const percent = Math.round(((currentSentenceIndex + 1) / sentences.length) * 100);
             titleProgressFill.style.width = percent + '%';
             titlePercentage.textContent = percent + '%';
         }
@@ -855,7 +991,7 @@ function initializeTTS(text, textItems, canvas) {
     
     function highlightSentence(sentenceIndex) {
         // Clear previous highlights
-        clearCanvasHighlight();
+        clearAllHighlights();
         
         if (isTextView) {
             // Highlight in text view
@@ -1073,123 +1209,65 @@ function createCanvasHighlight(canvas, textItems, sentences) {
 // Highlight sentence on PDF canvas
 function highlightOnCanvas(sentenceIndex) {
     const highlightCanvas = document.getElementById('highlight-canvas');
-    if (!highlightCanvas || !window.currentPDF || !window.sentences) return;
+    if (!highlightCanvas || !window.currentPDF) return;
     
     const ctx = highlightCanvas.getContext('2d');
     ctx.clearRect(0, 0, highlightCanvas.width, highlightCanvas.height);
     
-    // Use the same sentences array that TTS uses
-    const targetSentence = window.sentences[sentenceIndex];
+    // Get the sentence text to highlight
+    const sentences = window.currentPDF.fullText.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const targetSentence = sentences[sentenceIndex];
     
-    if (!targetSentence) {
-        console.log('⚠️ No sentence found at index:', sentenceIndex);
+    if (!targetSentence) return;
+    
+    console.log('🎯 Highlighting sentence:', sentenceIndex + 1, 'Text:', targetSentence.substring(0, 50) + '...');
+    
+    // Find the position of this sentence in the full text
+    const fullText = window.currentPDF.fullText;
+    const sentenceStart = fullText.indexOf(targetSentence.trim());
+    
+    if (sentenceStart === -1) {
+        console.log('⚠️ Sentence not found in full text');
         return;
     }
     
-    console.log('🎯 Highlighting sentence:', sentenceIndex + 1, 'Text:', targetSentence.substring(0, 80) + '...');
+    const sentenceEnd = sentenceStart + targetSentence.trim().length;
     
-    // Clean up the target sentence for better matching
-    const cleanTargetSentence = targetSentence.trim().toLowerCase();
-    const targetWords = cleanTargetSentence.split(/\s+/).filter(word => word.length > 2); // Only significant words
-    
-    console.log('� Looking for words:', targetWords.slice(0, 5).join(', '));
-    
-    // Find text items that contain words from our target sentence
+    // Build character-to-position mapping
+    let charIndex = 0;
     const matchingItems = [];
     
     window.currentPDF.textItems.forEach(item => {
-        const itemText = (item.str || item.text || '').trim().toLowerCase();
+        const itemText = item.text;
+        const itemStart = charIndex;
+        const itemEnd = charIndex + itemText.length;
         
-        if (itemText.length > 0) {
-            // Check if this text item contains significant words from our sentence
-            const matchCount = targetWords.filter(word => itemText.includes(word)).length;
-            
-            if (matchCount > 0) {
-                matchingItems.push({
-                    ...item,
-                    text: itemText,
-                    matchScore: matchCount
-                });
-            }
+        // Check if this text item overlaps with our target sentence
+        if (itemStart < sentenceEnd && itemEnd > sentenceStart) {
+            matchingItems.push(item);
         }
+        
+        charIndex += itemText.length;
     });
-    
-    if (matchingItems.length === 0) {
-        console.log('⚠️ No matching text items found for sentence');
-        return;
-    }
-    
-    // Sort by match score and take the best matches
-    matchingItems.sort((a, b) => b.matchScore - a.matchScore);
-    const bestMatches = matchingItems.slice(0, Math.min(10, matchingItems.length));
-    
-    console.log('📍 Found', bestMatches.length, 'matching text items');
     
     // Draw yellow highlight rectangles for matching items
     ctx.fillStyle = 'rgba(255, 255, 0, 0.6)';
     ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
     ctx.lineWidth = 1;
     
-    // Draw green highlights for all previously read sentences first
-    for (let i = 0; i < sentenceIndex; i++) {
-        const prevSentence = window.sentences[i];
-        const cleanPrevSentence = prevSentence.trim().toLowerCase();
-        const prevWords = cleanPrevSentence.split(/\s+/).filter(word => word.length > 2);
-        
-        let prevBestMatch = null;
-        let prevBestScore = 0;
-        
-        window.currentPDF.textItems.forEach(item => {
-            const itemText = (item.str || item.text || '').trim().toLowerCase();
-            const matchCount = prevWords.filter(word => itemText.includes(word)).length;
-            
-            if (matchCount > prevBestScore && matchCount >= Math.min(2, prevWords.length * 0.6)) {
-                prevBestScore = matchCount;
-                prevBestMatch = item;
-            }
-        });
-        
-        if (prevBestMatch) {
-            // Draw green highlight for completed sentence
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)';
-            ctx.strokeStyle = 'rgba(0, 200, 0, 0.6)';
-            
-            const x = prevBestMatch.x * currentZoom;
-            const y = (highlightCanvas.height / currentZoom) - (prevBestMatch.y + prevBestMatch.height);
-            const y_scaled = y * currentZoom;
-            const width = (prevBestMatch.width || 50) * currentZoom;
-            const height = (prevBestMatch.height || 12) * currentZoom;
-            
-            const padding = 1;
-            ctx.fillRect(x - padding, y_scaled - padding, width + (2 * padding), height + (2 * padding));
-            ctx.strokeRect(x - padding, y_scaled - padding, width + (2 * padding), height + (2 * padding));
-        }
-    }
-    
-    // Reset to yellow for current sentence
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.6)';
-    ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
-    
-    // Draw yellow highlight for ONLY the best match of current sentence
-    if (bestMatches.length > 0) {
-        const bestMatch = bestMatches[0]; // Take only the single best match
-        
-        // Convert PDF coordinates to canvas coordinates with current zoom
-        const x = bestMatch.x * currentZoom;
-        const y = (highlightCanvas.height / currentZoom) - (bestMatch.y + bestMatch.height);
-        const y_scaled = y * currentZoom;
-        const width = (bestMatch.width || 50) * currentZoom;
-        const height = (bestMatch.height || 12) * currentZoom;
+    matchingItems.forEach(item => {
+        // Convert PDF coordinates to canvas coordinates
+        const x = item.x;
+        const y = highlightCanvas.height - item.y - item.height; // Flip Y coordinate
+        const width = item.width || 50; // Default width if not specified
+        const height = item.height || 12; // Default height if not specified
         
         // Draw highlight rectangle
-        const padding = 1;
-        ctx.fillRect(x - padding, y_scaled - padding, width + (2 * padding), height + (2 * padding));
-        ctx.strokeRect(x - padding, y_scaled - padding, width + (2 * padding), height + (2 * padding));
-        
-        console.log(`🎨 Drew single highlight:`, bestMatch.text.substring(0, 20), 'at:', x.toFixed(1), y_scaled.toFixed(1));
-    }
+        ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
+        ctx.strokeRect(x - 1, y - 1, width + 2, height + 2);
+    });
     
-    console.log('✅ Highlighted 1 text item for sentence', sentenceIndex + 1);
+    console.log('✅ Highlighted', matchingItems.length, 'text items for sentence', sentenceIndex + 1);
 }
 
 // Clear canvas highlights
@@ -1324,12 +1402,16 @@ function initializeVoiceControls() {
 }
 
 // History functions
-async function saveToHistory(fileName, fileSize, file = null, loadedFromLocal = false) {
+async function saveToHistory(fileName, fileSize, file = null) {
     try {
         console.log('💾 Saving to history:', fileName);
         
-        // Check if file exists in local storage
-        // Save to history without local storage references
+        // Save PDF to local C: drive directory if provided
+        if (file) {
+            console.log('� Saving PDF to local storage...');
+            // await saveFileLocally(file, fileName); // Disabled to prevent file picker dialogs
+        }
+        
         const historyItem = {
             name: fileName,
             size: formatFileSize(fileSize),
@@ -1670,39 +1752,25 @@ async function loadAndShowHistory() {
                     const progress = item.progress || { lastPlayedLine: 0, totalLines: 0, remainingTime: 0, completedPercentage: 0 };
                     const loadStatus = item.loadStatus || { locallyAvailable: false, lastLoadMethod: 'upload', localPath: null };
                     
-                    // Check if this is the currently loaded PDF
-                    const isCurrentPDF = window.currentPDF && window.currentPDF.fileName === item.name;
-                    let currentProgress = progress;
-                    
-                    if (isCurrentPDF && window.currentSentenceIndex !== undefined && window.sentences && window.sentences.length > 0) {
-                        // Update with current reading position
-                        const currentPercentage = Math.round((window.currentSentenceIndex / window.sentences.length) * 100);
-                        currentProgress = {
-                            lastPlayedLine: window.currentSentenceIndex + 1,
-                            totalLines: window.sentences.length,
-                            remainingTime: (window.sentences.length - window.currentSentenceIndex) * 3, // estimate 3 seconds per sentence
-                            completedPercentage: currentPercentage
-                        };
-                    }
-                    
-                    const progressBar = currentProgress.totalLines > 0 ? 
+                    const progressBar = progress.totalLines > 0 ? 
                         `<div class="progress-bar-container">
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${currentProgress.completedPercentage}%"></div>
+                                <div class="progress-fill" style="width: ${progress.completedPercentage}%"></div>
                             </div>
-                            <span class="progress-text">${currentProgress.completedPercentage}%</span>
+                            <span class="progress-text">${progress.completedPercentage}%</span>
                         </div>` : '';
                     
-                    const loadStatusIndicator = '';
+                    const loadStatusIndicator = loadStatus.locallyAvailable ? 
+                        `<span style="color: #4CAF50; font-size: 11px;">⚡ Fast load available</span>` :
+                        `<span style="color: #FF9800; font-size: 11px;">📁 Place in C:/pdfs/ for fast load</span>`;
                     
-                    const loadButton = '';
-                    
-                    // Show current status instead of "Never played"
-                    const playStatus = isCurrentPDF ? 
-                        `📍 Currently reading - Line ${currentProgress.lastPlayedLine}` :
-                        (currentProgress.totalLines > 0 ? 
-                            `📚 ${currentProgress.completedPercentage}% completed - Line ${currentProgress.lastPlayedLine}` :
-                            '🆕 Not started yet');
+                    const loadButton = loadStatus.locallyAvailable ? 
+                        `<button onclick="loadFromLocalStorage('${item.name}', ${index})" 
+                            style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 5px; 
+                            margin-right: 8px; cursor: pointer; font-size: 11px;">⚡ Load</button>` :
+                        `<button onclick="alert('Place ${item.name} in C:/pdfs/ folder for fast loading')" 
+                            style="background: #FF9800; color: white; border: none; padding: 6px 12px; border-radius: 5px; 
+                            margin-right: 8px; cursor: pointer; font-size: 11px;">📁 Setup</button>`;
                     
                     return `
                         <div class="history-item" data-index="${index}">
@@ -1710,21 +1778,20 @@ async function loadAndShowHistory() {
                                 <div class="history-main">
                                     <h4 class="history-title">📄 ${item.name}</h4>
                                     <p class="history-details">
-                                        📊 Size: ${item.size} • ${playStatus}
+                                        📊 Size: ${item.size} • � ${item.lastPlayed || 'Never played'}
                                     </p>
                                     ${progressBar}
-                                    ${currentProgress.totalLines > 0 && !isCurrentPDF ? `
+                                    ${progress.totalLines > 0 ? `
                                         <div class="reading-progress">
-                                            <span class="time-info">⏱️ ${Math.floor(currentProgress.remainingTime / 60)}m ${currentProgress.remainingTime % 60}s remaining</span>
+                                            <span class="progress-info">📍 Line ${progress.lastPlayedLine} of ${progress.totalLines}</span>
+                                            <span class="time-info">⏱️ ${Math.floor(progress.remainingTime / 60)}m ${progress.remainingTime % 60}s remaining</span>
                                         </div>
-                                    ` : ''}
+                                    ` : '<p class="no-progress">🆕 Not started yet</p>'}
                                 </div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button class="delete-btn" onclick="deleteFromHistory(${index})" title="Delete from history">
-                                    🗑️
-                                </button>
-                            </div>
+                            <button class="delete-btn" onclick="deleteFromHistory(${index})" title="Delete from history">
+                                🗑️
+                            </button>
                         </div>
                     `;
                 }).join('');
@@ -1998,41 +2065,6 @@ function setupHistoryModalHandlers() {
         });
         console.log('✅ History modal close button handler added');
     }
-
-    // Clear history button handler
-    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-    if (clearHistoryBtn) {
-        clearHistoryBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            if (confirm('Are you sure you want to clear all reading history? This action cannot be undone.')) {
-                console.log('🗑️ Clearing all reading history');
-                
-                try {
-                    const response = await fetch('/api/history', {
-                        method: 'DELETE',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        console.log('✅ History cleared successfully');
-                        // Refresh the history display
-                        await loadAndShowHistory();
-                    } else {
-                        console.error('❌ Failed to clear history');
-                        alert('Failed to clear history. Please try again.');
-                    }
-                } catch (error) {
-                    console.error('❌ Error clearing history:', error);
-                    alert('Error clearing history. Please try again.');
-                }
-            }
-        });
-        console.log('✅ Clear history button handler added');
-    }
 }
 
 // Helper function to create recommended directory structure guide
@@ -2143,5 +2175,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Make functions globally available
 window.reloadPDFFromHistory = reloadPDFFromHistory;
 window.deleteFromHistory = deleteFromHistory;
+window.showDirectorySetupGuide = showDirectorySetupGuide;
 
-console.log('📜 Script loaded successfully');
+console.log('📜 Script loaded successfully with local storage support');
