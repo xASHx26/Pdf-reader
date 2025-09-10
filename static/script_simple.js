@@ -1105,37 +1105,55 @@ function createCanvasHighlight(canvas, textItems, sentences) {
     function findSentenceAtPosition(clickX, clickY) {
         if (!window.currentPDF || !window.sentences) return -1;
         
-        // Look through text items to find the one closest to the click
-        let closestDistance = Infinity;
-        let closestSentenceIndex = -1;
+        console.log('🔍 Looking for sentence at position:', clickX, clickY);
         
-        window.sentences.forEach((sentence, sentenceIndex) => {
-            const cleanSentence = sentence.trim().toLowerCase();
-            const words = cleanSentence.split(/\s+/).filter(w => w.length > 2);
+        // First, find text items near the click position
+        const nearbyItems = [];
+        window.currentPDF.textItems.forEach((item, itemIndex) => {
+            const distance = Math.sqrt(
+                Math.pow(clickX - item.x, 2) + 
+                Math.pow(clickY - item.y, 2)
+            );
             
-            window.currentPDF.textItems.forEach(item => {
-                const itemText = (item.str || item.text || '').trim().toLowerCase();
-                
-                // Check if this text item is part of our sentence
-                const matchCount = words.filter(word => itemText.includes(word)).length;
-                
-                if (matchCount > 0) {
-                    // Calculate distance from click to this text item
-                    const distance = Math.sqrt(
-                        Math.pow(clickX - item.x, 2) + 
-                        Math.pow(clickY - item.y, 2)
-                    );
-                    
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestSentenceIndex = sentenceIndex;
-                    }
-                }
-            });
+            if (distance < 50) { // Within 50 pixels
+                nearbyItems.push({
+                    item: item,
+                    distance: distance,
+                    itemIndex: itemIndex
+                });
+            }
         });
         
-        // Only return if click was reasonably close (within 100 pixels)
-        return closestDistance < 100 ? closestSentenceIndex : -1;
+        if (nearbyItems.length === 0) {
+            console.log('❌ No text items found near click position');
+            return -1;
+        }
+        
+        // Sort by distance and get the closest
+        nearbyItems.sort((a, b) => a.distance - b.distance);
+        const closestItem = nearbyItems[0];
+        
+        console.log('📍 Closest text item:', closestItem.item.text, 'at index:', closestItem.itemIndex);
+        
+        // Now find which sentence this text item belongs to
+        // Build the text up to this item to determine sentence position
+        let textUpToItem = '';
+        for (let i = 0; i <= closestItem.itemIndex; i++) {
+            textUpToItem += window.currentPDF.textItems[i].text;
+        }
+        
+        console.log('📝 Text up to clicked item:', textUpToItem.substring(textUpToItem.length - 50));
+        
+        // Count how many sentence endings appear before this position
+        const sentenceEndings = textUpToItem.match(/[.!?]+/g);
+        const sentenceIndex = sentenceEndings ? sentenceEndings.length : 0;
+        
+        // Make sure we don't exceed the number of sentences
+        const finalIndex = Math.min(sentenceIndex, window.sentences.length - 1);
+        
+        console.log('🎯 Calculated sentence index:', finalIndex, 'of', window.sentences.length);
+        
+        return finalIndex >= 0 ? finalIndex : 0;
     }
     
     console.log('✅ Canvas highlighting setup complete');
