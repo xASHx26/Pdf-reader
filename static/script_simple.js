@@ -1352,16 +1352,12 @@ async function saveToHistory(fileName, fileSize, file = null, loadedFromLocal = 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: fileName, size: fileSize })
             });
-        }
-        
-    } catch (error) {
-        console.error('❌ Error saving to history:', error);
-    }
-        
-        if (response.ok) {
-            console.log('✅ Saved to history successfully');
-        } else {
-            console.error('❌ Failed to save to history');
+            
+            if (response.ok) {
+                console.log('✅ Saved to history successfully');
+            } else {
+                console.error('❌ Failed to save to history');
+            }
         }
         
     } catch (error) {
@@ -1747,45 +1743,6 @@ async function loadAndShowHistory() {
         console.error('❌ Error loading history:', error);
         alert('Error loading history: ' + error.message);
     }
-                    const playStatus = isCurrentPDF ? 
-                        `📍 Currently reading - Line ${currentProgress.lastPlayedLine}` :
-                        (currentProgress.totalLines > 0 ? 
-                            `📚 ${currentProgress.completedPercentage}% completed - Line ${currentProgress.lastPlayedLine}` :
-                            '🆕 Not started yet');
-                    
-                    return `
-                        <div class="history-item" data-index="${index}">
-                            <div class="history-content">
-                                <div class="history-main">
-                                    <h4 class="history-title">📄 ${item.name}</h4>
-                                    <p class="history-details">
-                                        📊 Size: ${item.size} • ${playStatus}
-                                    </p>
-                                    ${progressBar}
-                                    ${currentProgress.totalLines > 0 && !isCurrentPDF ? `
-                                        <div class="reading-progress">
-                                            <span class="time-info">⏱️ ${Math.floor(currentProgress.remainingTime / 60)}m ${currentProgress.remainingTime % 60}s remaining</span>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button class="delete-btn" onclick="deleteFromHistory(${index})" title="Delete from history">
-                                    🗑️
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
-            
-            console.log('✅ Reading history modal displayed');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error loading history:', error);
-        alert('Error loading history: ' + error.message);
-    }
 }
 
 // Reload PDF from history
@@ -2035,23 +1992,6 @@ async function deleteFromHistory(index) {
                         console.error('❌ Failed to delete item');
                         alert('Failed to delete item from history');
                     }
-                }
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Error deleting from history:', error);
-        alert('Error deleting from history: ' + error.message);
-    }
-                });
-                
-                if (deleteResponse.ok) {
-                    console.log('✅ Item deleted successfully');
-                    // Reload history display
-                    await loadAndShowHistory();
-                } else {
-                    console.error('❌ Failed to delete item');
-                    alert('Failed to delete item from history');
                 }
             }
         }
