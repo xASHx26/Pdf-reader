@@ -165,7 +165,12 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=6"></script>
+    <!-- History Manager Script -->
+    <script src="{{ url_for('static', filename='history-manager.js') }}?v=1&t={{ timestamp }}"></script>
+    
+    <!-- Main Application Script -->
+    <script src="{{ url_for('static', filename='script_simple.js') }}?v=10&t={{ timestamp }}"></script>
+    
     <script>
         // Immediate modal hide to prevent flashing
         document.addEventListener('DOMContentLoaded', function() {
@@ -175,8 +180,5 @@
             }
         });
     </script>
-    
-    <!-- Main Application Script -->
-    <script src="{{ url_for('static', filename='script.js') }}?v=9&t={{ timestamp }}"></script>
 </body>
 </html>
