@@ -162,13 +162,16 @@ async function loadPDFFile(file) {
             text: item.str,
             x: item.transform[4],
             y: item.transform[5],
-            width: item.width,
-            height: item.height,
+            width: item.width || (item.str.length * 8), // Estimate width if not provided
+            height: item.height || 12, // Default height
+            fontSize: item.transform[0] || 12, // Font size from transform matrix
             index: index
         }));
         
-        const fullText = textItems.map(item => item.text).join(' ');
+        // Build full text while preserving character positions  
+        const fullText = textItems.map(item => item.text).join('');
         console.log('✅ Text extracted with positions, length:', fullText.length);
+        console.log('📊 Text items count:', textItems.length);
         
         // Store references for both views
         window.currentPDF = {
@@ -183,12 +186,88 @@ async function loadPDFFile(file) {
             initializeTTS(fullText, textItems, canvas);
         }
         
+        // Initialize zoom controls
+        initializeZoomControls();
+        
         // Save to history and upload file to server
         await saveToHistory(file.name, file.size, file);
         
     } catch (error) {
         console.error('❌ Error loading PDF:', error);
         alert('Error loading PDF: ' + error.message);
+    }
+}
+
+// Zoom functionality for PDF viewer
+let currentZoom = 1.0;
+
+function initializeZoomControls() {
+    const zoomInBtn = document.getElementById('zoom-in');
+    const zoomOutBtn = document.getElementById('zoom-out');
+    const zoomLevel = document.getElementById('zoom-level');
+    
+    if (zoomInBtn && zoomOutBtn && zoomLevel) {
+        zoomInBtn.addEventListener('click', () => zoomPDF(0.1));
+        zoomOutBtn.addEventListener('click', () => zoomPDF(-0.1));
+        
+        // Update zoom level display
+        updateZoomDisplay();
+        console.log('✅ Zoom controls initialized');
+    }
+}
+
+function zoomPDF(delta) {
+    if (!window.currentPDF) return;
+    
+    // Update zoom level (min 0.5x, max 3.0x)
+    currentZoom = Math.max(0.5, Math.min(3.0, currentZoom + delta));
+    
+    // Re-render PDF with new zoom
+    renderPDFAtZoom();
+    updateZoomDisplay();
+    
+    console.log('🔍 Zoom changed to:', Math.round(currentZoom * 100) + '%');
+}
+
+async function renderPDFAtZoom() {
+    if (!window.currentPDF) return;
+    
+    try {
+        const { page, canvas } = window.currentPDF;
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Set up viewport with zoom
+        const viewport = page.getViewport({ scale: currentZoom });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        // Re-render the page
+        await page.render({
+            canvasContext: ctx,
+            viewport: viewport
+        }).promise;
+        
+        // Update highlight canvas if it exists
+        const highlightCanvas = document.getElementById('highlight-canvas');
+        if (highlightCanvas) {
+            highlightCanvas.width = viewport.width;
+            highlightCanvas.height = viewport.height;
+        }
+        
+        console.log('✅ PDF re-rendered at zoom:', Math.round(currentZoom * 100) + '%');
+        
+    } catch (error) {
+        console.error('❌ Error re-rendering PDF at zoom:', error);
+    }
+}
+
+function updateZoomDisplay() {
+    const zoomLevel = document.getElementById('zoom-level');
+    if (zoomLevel) {
+        zoomLevel.textContent = Math.round(currentZoom * 100) + '%';
     }
 }
 
@@ -253,13 +332,16 @@ async function loadPDFFromURL(url, fileName) {
             text: item.str,
             x: item.transform[4],
             y: item.transform[5],
-            width: item.width,
-            height: item.height,
+            width: item.width || (item.str.length * 8), // Estimate width if not provided
+            height: item.height || 12, // Default height
+            fontSize: item.transform[0] || 12, // Font size from transform matrix
             index: index
         }));
         
-        const fullText = textItems.map(item => item.text).join(' ');
+        // Build full text while preserving character positions  
+        const fullText = textItems.map(item => item.text).join('');
         console.log('✅ Text extracted with positions, length:', fullText.length);
+        console.log('📊 Text items count:', textItems.length);
         
         // Store references for both views
         window.currentPDF = {
@@ -273,6 +355,9 @@ async function loadPDFFromURL(url, fileName) {
         if (fullText.trim()) {
             initializeTTS(fullText, textItems, canvas);
         }
+        
+        // Initialize zoom controls
+        initializeZoomControls();
         
         console.log('✅ PDF loaded from server successfully:', fileName);
         
@@ -724,25 +809,54 @@ function highlightOnCanvas(sentenceIndex) {
     
     if (!targetSentence) return;
     
-    // Find text items that match this sentence
-    const sentenceWords = targetSentence.trim().split(/\s+/);
+    console.log('🎯 Highlighting sentence:', sentenceIndex + 1, 'Text:', targetSentence.substring(0, 50) + '...');
+    
+    // Find the position of this sentence in the full text
+    const fullText = window.currentPDF.fullText;
+    const sentenceStart = fullText.indexOf(targetSentence.trim());
+    
+    if (sentenceStart === -1) {
+        console.log('⚠️ Sentence not found in full text');
+        return;
+    }
+    
+    const sentenceEnd = sentenceStart + targetSentence.trim().length;
+    
+    // Build character-to-position mapping
+    let charIndex = 0;
     const matchingItems = [];
     
-    // Simple word matching - find text items that contain sentence words
     window.currentPDF.textItems.forEach(item => {
-        const itemWords = item.text.trim().split(/\s+/);
-        if (itemWords.some(word => sentenceWords.includes(word))) {
+        const itemText = item.text;
+        const itemStart = charIndex;
+        const itemEnd = charIndex + itemText.length;
+        
+        // Check if this text item overlaps with our target sentence
+        if (itemStart < sentenceEnd && itemEnd > sentenceStart) {
             matchingItems.push(item);
         }
+        
+        charIndex += itemText.length;
     });
     
-    // Draw yellow highlight rectangles
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.4)';
+    // Draw yellow highlight rectangles for matching items
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.6)';
+    ctx.strokeStyle = 'rgba(255, 200, 0, 0.8)';
+    ctx.lineWidth = 1;
+    
     matchingItems.forEach(item => {
-        ctx.fillRect(item.x - 2, item.y - item.height + 2, item.width + 4, item.height + 2);
+        // Convert PDF coordinates to canvas coordinates
+        const x = item.x;
+        const y = highlightCanvas.height - item.y - item.height; // Flip Y coordinate
+        const width = item.width || 50; // Default width if not specified
+        const height = item.height || 12; // Default height if not specified
+        
+        // Draw highlight rectangle
+        ctx.fillRect(x - 1, y - 1, width + 2, height + 2);
+        ctx.strokeRect(x - 1, y - 1, width + 2, height + 2);
     });
     
-    console.log('🎯 Highlighted sentence', sentenceIndex + 1, 'on canvas');
+    console.log('✅ Highlighted', matchingItems.length, 'text items for sentence', sentenceIndex + 1);
 }
 
 // Clear canvas highlights
