@@ -79,77 +79,29 @@ def api_health_check():
 
 @app.route('/api/history', methods=['GET', 'POST', 'DELETE'])
 def handle_history():
-    """Handle reading history operations"""
+    """Handle reading history operations - Now using localStorage on client side"""
     import json
     from datetime import datetime
     
-    history_file = 'data/history.json'
-    
-    # Ensure data directory exists
-    try:
-        os.makedirs('data', exist_ok=True)
-    except:
-        pass
-    
     if request.method == 'GET':
-        # Get reading history
-        try:
-            if os.path.exists(history_file):
-                with open(history_file, 'r') as f:
-                    history = json.load(f)
-            else:
-                history = []
-            return jsonify(history)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        # Return empty history - client will use localStorage
+        return jsonify([])
     
     elif request.method == 'POST':
-        # Add to reading history
-        try:
-            data = request.get_json()
-            
-            # Load existing history
-            if os.path.exists(history_file):
-                with open(history_file, 'r') as f:
-                    history = json.load(f)
-            else:
-                history = []
-            
-            # Add new entry
-            new_entry = {
-                'id': int(datetime.now().timestamp() * 1000),
-                'name': data.get('name'),
-                'size': data.get('size'),
-                'date': datetime.now().strftime('%Y-%m-%d'),
-                'time': datetime.now().strftime('%H:%M:%S')
-            }
-            
-            # Remove existing entry with same name
-            history = [item for item in history if item.get('name') != data.get('name')]
-            
-            # Add new entry at the beginning
-            history.insert(0, new_entry)
-            
-            # Keep only last 20 items
-            history = history[:20]
-            
-            # Save to file
-            with open(history_file, 'w') as f:
-                json.dump(history, f, indent=2)
-            
-            return jsonify({'message': 'History updated successfully'})
-        
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        # Acknowledge history save - client handles with localStorage
+        return jsonify({'message': 'History handled by client localStorage'})
     
     elif request.method == 'DELETE':
-        # Clear reading history
-        try:
-            if os.path.exists(history_file):
-                os.remove(history_file)
-            return jsonify({'message': 'History cleared successfully'})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        # Acknowledge history clear - client handles with localStorage
+        return jsonify({'message': 'History cleared via client localStorage'})
+
+@app.route('/api/history/<int:index>', methods=['DELETE'])
+def delete_history_item(index):
+    """Delete individual item from reading history - Now using localStorage"""
+    return jsonify({
+        'message': 'History deletion handled by client localStorage',
+        'index': index
+    })
 
 @app.route('/test')
 def test():

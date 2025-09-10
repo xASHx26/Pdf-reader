@@ -156,6 +156,9 @@
         });
     </script>
     
+    <!-- Enhanced History Manager for Vercel -->
+    <script src="{{ url_for('static', filename='history-manager.js') }}?v=1&t={{ timestamp }}"></script>
+    
     <!-- Main Application Script -->
     <script src="{{ url_for('static', filename='script_simple.js') }}?v=16&t={{ timestamp }}"></script>
 </body>
