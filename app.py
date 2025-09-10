@@ -28,6 +28,11 @@ def index():
     except Exception as e:
         return f"Error loading template: {str(e)}", 500
 
+@app.route('/test')
+def test():
+    """Simple test route"""
+    return "PDF Reader Flask app is working on Vercel! 🎉"
+
 @app.route('/health')
 def health():
     """Simple health check"""
