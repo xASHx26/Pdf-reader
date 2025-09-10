@@ -955,14 +955,26 @@ function initializeTTS(text, textItems, canvas) {
     
     // Function to jump to specific sentence when clicked (text view)
     window.jumpToSentence = function(sentenceIndex) {
-        console.log('🎯 Jumping to sentence:', sentenceIndex + 1);
+        console.log('🎯 Jumping to sentence:', sentenceIndex + 1, 'from current:', currentSentenceIndex + 1);
+        
+        // Stop any current speech
+        if (speechSynthesis.speaking) {
+            speechSynthesis.cancel();
+        }
+        
+        // Set the new sentence index
         currentSentenceIndex = sentenceIndex;
+        window.currentSentenceIndex = currentSentenceIndex; // Sync global variable
+        
         updateCurrentSentenceDisplay();
         
         if (isReading) {
-            speechSynthesis.cancel();
+            // If already reading, continue from this sentence
+            console.log('▶️ Continuing reading from clicked sentence:', currentSentenceIndex + 1);
             speakSentence(sentences[currentSentenceIndex]);
         } else {
+            // If not reading, just highlight the sentence
+            console.log('🎯 Highlighting clicked sentence:', currentSentenceIndex + 1);
             highlightSentence(currentSentenceIndex);
         }
     };
@@ -1066,6 +1078,65 @@ function createCanvasHighlight(canvas, textItems, sentences) {
     
     // Insert after the main canvas
     canvas.parentNode.insertBefore(highlightCanvas, canvas.nextSibling);
+    
+    // Make canvas cursor indicate it's clickable
+    canvas.style.cursor = 'pointer';
+    
+    // Add click handler to main PDF canvas for sentence navigation
+    canvas.addEventListener('click', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left) * (canvas.width / rect.width);
+        const y = (event.clientY - rect.top) * (canvas.height / rect.height);
+        
+        console.log('🖱️ PDF canvas clicked at:', x, y);
+        
+        // Find the closest sentence based on click position
+        const clickedSentenceIndex = findSentenceAtPosition(x, y);
+        
+        if (clickedSentenceIndex !== -1) {
+            console.log('🎯 Found sentence at click:', clickedSentenceIndex + 1);
+            window.jumpToSentence(clickedSentenceIndex);
+        } else {
+            console.log('❌ No sentence found at click position');
+        }
+    });
+    
+    // Function to find sentence at clicked position
+    function findSentenceAtPosition(clickX, clickY) {
+        if (!window.currentPDF || !window.sentences) return -1;
+        
+        // Look through text items to find the one closest to the click
+        let closestDistance = Infinity;
+        let closestSentenceIndex = -1;
+        
+        window.sentences.forEach((sentence, sentenceIndex) => {
+            const cleanSentence = sentence.trim().toLowerCase();
+            const words = cleanSentence.split(/\s+/).filter(w => w.length > 2);
+            
+            window.currentPDF.textItems.forEach(item => {
+                const itemText = (item.str || item.text || '').trim().toLowerCase();
+                
+                // Check if this text item is part of our sentence
+                const matchCount = words.filter(word => itemText.includes(word)).length;
+                
+                if (matchCount > 0) {
+                    // Calculate distance from click to this text item
+                    const distance = Math.sqrt(
+                        Math.pow(clickX - item.x, 2) + 
+                        Math.pow(clickY - item.y, 2)
+                    );
+                    
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestSentenceIndex = sentenceIndex;
+                    }
+                }
+            });
+        });
+        
+        // Only return if click was reasonably close (within 100 pixels)
+        return closestDistance < 100 ? closestSentenceIndex : -1;
+    }
     
     console.log('✅ Canvas highlighting setup complete');
 }
