@@ -517,15 +517,47 @@ async function renderPage(pageNumber) {
 
 // Initialize page controls
 function initializePageControls() {
+    console.log('🎮 Initializing page controls...');
+    
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
+    const pdfControls = document.getElementById('pdf-controls');
+    
+    console.log('🔍 Page controls found:', {
+        prevBtn: !!prevBtn,
+        nextBtn: !!nextBtn,
+        pdfControls: !!pdfControls
+    });
     
     if (prevBtn && nextBtn) {
-        prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
-        nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
+        // Remove existing listeners to avoid duplicates
+        prevBtn.replaceWith(prevBtn.cloneNode(true));
+        nextBtn.replaceWith(nextBtn.cloneNode(true));
+        
+        // Get fresh references
+        const newPrevBtn = document.getElementById('prev-page');
+        const newNextBtn = document.getElementById('next-page');
+        
+        newPrevBtn.addEventListener('click', () => {
+            console.log('⬅️ Previous page clicked, current:', currentPage);
+            goToPage(currentPage - 1);
+        });
+        
+        newNextBtn.addEventListener('click', () => {
+            console.log('➡️ Next page clicked, current:', currentPage);
+            goToPage(currentPage + 1);
+        });
+        
+        // Ensure controls are visible
+        if (pdfControls) {
+            pdfControls.style.display = 'flex';
+            pdfControls.style.visibility = 'visible';
+        }
         
         updatePageDisplay();
-        console.log('✅ Page controls initialized');
+        console.log('✅ Page controls initialized with', totalPages, 'pages');
+    } else {
+        console.warn('⚠️ Page control buttons not found in DOM');
     }
 }
 
@@ -547,11 +579,34 @@ function updatePageDisplay() {
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
     
-    if (currentPageSpan) currentPageSpan.textContent = currentPage;
-    if (totalPagesSpan) totalPagesSpan.textContent = totalPages;
+    console.log('📊 Updating page display:', currentPage, 'of', totalPages);
     
-    if (prevBtn) prevBtn.disabled = currentPage <= 1;
-    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+    if (currentPageSpan) {
+        currentPageSpan.textContent = currentPage;
+        console.log('✅ Updated current page display to:', currentPage);
+    }
+    
+    if (totalPagesSpan) {
+        totalPagesSpan.textContent = totalPages;
+        console.log('✅ Updated total pages display to:', totalPages);
+    }
+    
+    if (prevBtn) {
+        prevBtn.disabled = currentPage <= 1;
+        prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
+    }
+    
+    if (nextBtn) {
+        nextBtn.disabled = currentPage >= totalPages;
+        nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
+    }
+    
+    console.log('🎮 Page controls state:', {
+        currentPage: currentPage,
+        totalPages: totalPages,
+        prevDisabled: currentPage <= 1,
+        nextDisabled: currentPage >= totalPages
+    });
 }
 
 function updateZoomDisplay() {
@@ -632,6 +687,13 @@ async function loadPDFFromURL(url, fileName) {
         
         // Initialize page controls
         initializePageControls();
+        
+        // Make sure page controls are visible
+        const pdfControls = document.getElementById('pdf-controls');
+        if (pdfControls) {
+            pdfControls.style.display = 'flex';
+            console.log('✅ Page controls made visible');
+        }
         
         // Store references for both views
         window.currentPDF = {
@@ -929,35 +991,40 @@ function initializeTTS(text, textItems, canvas) {
         }
     }
     
-    // Find which page contains a specific sentence
+    // Find which page contains a specific sentence - improved algorithm
     function findPageForSentence(sentenceIndex) {
-        if (!window.sentences || !allPagesText) return 1;
+        if (!window.sentences || !allPagesText || sentenceIndex < 0) return 1;
         
-        const targetSentence = window.sentences[sentenceIndex];
-        if (!targetSentence) return currentPage;
-        
-        // Build cumulative text to find sentence position
-        let cumulativeText = '';
-        
-        for (let pageNum = 0; pageNum < allPagesText.length; pageNum++) {
-            const pageText = allPagesText[pageNum];
-            const beforeLength = cumulativeText.length;
-            cumulativeText += ' ' + pageText;
-            
-            // Count sentences in this cumulative text
-            const sentences = cumulativeText.split(/[.!?]+/).filter(s => s.trim().length > 10);
-            
-            if (sentences.length > sentenceIndex) {
-                console.log('📖 Sentence', sentenceIndex + 1, 'found on page', pageNum + 1);
-                return pageNum + 1;
+        // Calculate character position of the sentence in the full text
+        let charPosition = 0;
+        for (let i = 0; i < sentenceIndex; i++) {
+            if (window.sentences[i]) {
+                charPosition += window.sentences[i].length + 1; // +1 for sentence delimiter
             }
         }
         
-        return currentPage; // Fallback to current page
+        // Find which page contains this character position
+        let cumulativeLength = 0;
+        for (let pageNum = 0; pageNum < allPagesText.length; pageNum++) {
+            const pageLength = allPagesText[pageNum].length;
+            if (charPosition <= cumulativeLength + pageLength) {
+                console.log('📖 Sentence', sentenceIndex + 1, 'found on page', pageNum + 1, 'at char pos', charPosition);
+                return pageNum + 1;
+            }
+            cumulativeLength += pageLength + 1; // +1 for space between pages
+        }
+        
+        return Math.min(totalPages, Math.max(1, currentPage)); // Safe fallback
     }
 
     function highlightSentence(sentenceIndex) {
-        console.log('🎯 Highlighting sentence:', sentenceIndex + 1);
+        console.log('🎯 Highlighting sentence:', sentenceIndex + 1, 'of', window.sentences.length);
+        
+        // Validate sentence index
+        if (!window.sentences || sentenceIndex < 0 || sentenceIndex >= window.sentences.length) {
+            console.log('⚠️ Invalid sentence index:', sentenceIndex);
+            return;
+        }
         
         // Clear previous highlights
         clearCanvasHighlight();
@@ -969,8 +1036,10 @@ function initializeTTS(text, textItems, canvas) {
         if (targetPage !== currentPage && totalPages > 1) {
             console.log('📖 Navigating to page', targetPage, 'for sentence', sentenceIndex + 1);
             goToPage(targetPage).then(() => {
-                // Highlight after page change
-                performHighlight(sentenceIndex);
+                // Small delay to ensure page is rendered
+                setTimeout(() => {
+                    performHighlight(sentenceIndex);
+                }, 100);
             });
         } else {
             // Highlight on current page
@@ -1223,21 +1292,28 @@ function createCanvasHighlight(canvas, textItems, sentences) {
         }
     });
     
-    // Function to find sentence at clicked position
+    // Function to find sentence at clicked position - improved for multi-page
     function findSentenceAtPosition(clickX, clickY) {
-        if (!window.currentPDF || !window.sentences) return -1;
+        if (!window.currentPDF || !window.sentences || !allPagesTextItems) return -1;
         
-        console.log('🔍 Looking for sentence at position:', clickX, clickY);
+        console.log('🔍 Looking for sentence at position:', clickX, clickY, 'on page', currentPage);
         
-        // First, find text items near the click position
+        // Get text items for current page only
+        const currentPageItems = allPagesTextItems[currentPage - 1]; // Pages are 1-indexed
+        if (!currentPageItems) {
+            console.log('❌ No text items for current page');
+            return -1;
+        }
+        
+        // Find text items near the click position on current page
         const nearbyItems = [];
-        window.currentPDF.textItems.forEach((item, itemIndex) => {
+        currentPageItems.forEach((item, itemIndex) => {
             const distance = Math.sqrt(
                 Math.pow(clickX - item.x, 2) + 
                 Math.pow(clickY - item.y, 2)
             );
             
-            if (distance < 50) { // Within 50 pixels
+            if (distance < 80) { // Increased tolerance
                 nearbyItems.push({
                     item: item,
                     distance: distance,
@@ -1247,7 +1323,7 @@ function createCanvasHighlight(canvas, textItems, sentences) {
         });
         
         if (nearbyItems.length === 0) {
-            console.log('❌ No text items found near click position');
+            console.log('❌ No text items found near click position on current page');
             return -1;
         }
         
@@ -1255,29 +1331,32 @@ function createCanvasHighlight(canvas, textItems, sentences) {
         nearbyItems.sort((a, b) => a.distance - b.distance);
         const closestItem = nearbyItems[0];
         
-        console.log('📍 Closest text item:', closestItem.item.text, 'at index:', closestItem.itemIndex);
+        console.log('📍 Closest text item:', closestItem.item.text, 'on page', currentPage);
         
-        // Now find which sentence this text item belongs to
-        // Build the text up to this item to determine sentence position
-        let textUpToItem = '';
-        for (let i = 0; i <= closestItem.itemIndex; i++) {
-            textUpToItem += window.currentPDF.textItems[i].text;
+        // Build text from all previous pages + current page up to clicked item
+        let textUpToClick = '';
+        
+        // Add text from all previous pages
+        for (let pageNum = 0; pageNum < currentPage - 1; pageNum++) {
+            textUpToClick += allPagesText[pageNum] + ' ';
         }
         
-        console.log('📝 Text up to clicked item:', textUpToItem.substring(textUpToItem.length - 50));
+        // Add text from current page up to clicked item
+        for (let i = 0; i <= closestItem.itemIndex; i++) {
+            textUpToClick += currentPageItems[i].text;
+        }
         
-        // Count how many sentence endings appear before this position
-        const sentenceEndings = textUpToItem.match(/[.!?]+/g);
-        const sentenceIndex = sentenceEndings ? sentenceEndings.length : 0;
+        console.log('📝 Total text up to click:', textUpToClick.length, 'characters');
         
-        // Make sure we don't exceed the number of sentences
-        const finalIndex = Math.min(sentenceIndex, window.sentences.length - 1);
+        // Count sentences in this text to find the sentence index
+        const sentencesUpToClick = textUpToClick.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        const sentenceIndex = Math.max(0, sentencesUpToClick.length - 1);
         
-        console.log('🎯 Calculated sentence index:', finalIndex, 'of', window.sentences.length);
+        console.log('🎯 Calculated sentence index:', sentenceIndex, 'of', window.sentences.length);
         
-        return finalIndex >= 0 ? finalIndex : 0;
+        return Math.min(sentenceIndex, window.sentences.length - 1);
     }
-    
+
     console.log('✅ Canvas highlighting setup complete');
 }
 
