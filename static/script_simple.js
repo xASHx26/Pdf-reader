@@ -348,66 +348,82 @@ async function loadPDFFile(file) {
         
         // Load PDF with PDF.js
         console.log('📚 Loading PDF with PDF.js...');
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        console.log('✅ PDF loaded successfully! Pages:', pdf.numPages);
+        pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+        totalPages = pdfDocument.numPages;
+        currentPage = 1;
+        console.log('✅ PDF loaded successfully! Pages:', totalPages);
         console.log('📊 Load method: File Input (Standard)');
         
-        // Get first page
-        const page = await pdf.getPage(1);
-        const canvas = document.getElementById('pdf-canvas');
-        const ctx = canvas.getContext('2d');
+        // Extract text from all pages for complete TTS
+        console.log('📝 Extracting text from all pages...');
+        allPagesText = [];
+        allPagesTextItems = [];
         
-        // Set up viewport and render with current zoom
-        const viewport = page.getViewport({ scale: currentZoom });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        
-        console.log('🎨 Rendering PDF page...');
-        await page.render({
-            canvasContext: ctx,
-            viewport: viewport
-        }).promise;
-        
-        console.log('✅ PDF rendered successfully!');
-        
-        // Extract text for TTS with line positions
-        console.log('📝 Extracting text with positions...');
-        const textContent = await page.getTextContent();
-        
-        // Create text items with position data for highlighting
-        const textItems = textContent.items.map((item, index) => ({
-            text: item.str,
-            x: item.transform[4],
-            y: item.transform[5],
-            width: item.width || (item.str.length * 8), // Estimate width if not provided
-            height: item.height || 12, // Default height
-            fontSize: item.transform[0] || 12, // Font size from transform matrix
-            index: index
-        }));
-        
-        // Build full text while preserving character positions  
-        const fullText = textItems.map(item => item.text).join('');
-        console.log('✅ Text extracted with positions, length:', fullText.length);
-        console.log('📊 Text items count:', textItems.length);
-        
-        // Store references for both views
-        window.currentPDF = {
-            canvas: canvas,
-            textItems: textItems,
-            fullText: fullText,
-            page: page
-        };
-        
-        // Initialize TTS with extracted text and positions
-        if (fullText.trim()) {
-            initializeTTS(fullText, textItems, canvas);
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            const page = await pdfDocument.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // Create text items with position data for highlighting
+            const pageTextItems = textContent.items.map((item, index) => ({
+                text: item.str,
+                x: item.transform[4],
+                y: item.transform[5],
+                width: item.width || (item.str.length * 8),
+                height: item.height || 12,
+                fontSize: item.transform[0] || 12,
+                index: index,
+                pageNumber: pageNum
+            }));
+            
+            const pageText = pageTextItems.map(item => item.text).join('');
+            allPagesText.push(pageText);
+            allPagesTextItems.push(pageTextItems);
         }
+        
+        // Combine all text for TTS
+        const fullText = allPagesText.join(' ');
+        console.log('✅ Text extracted from all pages, total length:', fullText.length);
+        
+        // Render first page
+        await renderPage(currentPage);
         
         // Initialize zoom controls
         initializeZoomControls();
         
+        // Initialize page controls
+        initializePageControls();
+        
+        // Make sure page controls are visible - enhanced visibility
+        const pdfControls = document.getElementById('pdf-controls');
+        if (pdfControls) {
+            pdfControls.style.display = 'flex';
+            pdfControls.style.visibility = 'visible';
+            pdfControls.style.opacity = '1';
+            pdfControls.classList.remove('hidden');
+            console.log('✅ Page controls made visible - total pages:', totalPages);
+            console.log('✅ Current page:', currentPage);
+        } else {
+            console.error('❌ PDF controls element not found!');
+        }
+        
+        // Store references for both views
+        window.currentPDF = {
+            canvas: document.getElementById('pdf-canvas'),
+            textItems: allPagesTextItems.flat(), // Flatten all page text items
+            fullText: fullText,
+            pdfDocument: pdfDocument,
+            allPagesTextItems: allPagesTextItems
+        };
+        
+        // Initialize TTS with extracted text and positions
+        if (fullText.trim()) {
+            initializeTTS(fullText, allPagesTextItems.flat(), document.getElementById('pdf-canvas'));
+        }
+        
         // Save to history with load status information
         await saveToHistory(file.name, file.size, file, false);
+        
+        console.log('✅ PDF loaded from file successfully:', file.name);
         
     } catch (error) {
         console.error('❌ Error loading PDF:', error);
@@ -518,6 +534,7 @@ async function renderPage(pageNumber) {
 // Initialize page controls
 function initializePageControls() {
     console.log('🎮 Initializing page controls...');
+    console.log('🎮 Total pages:', totalPages, 'Current page:', currentPage);
     
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
@@ -528,6 +545,14 @@ function initializePageControls() {
         nextBtn: !!nextBtn,
         pdfControls: !!pdfControls
     });
+    
+    // Show the controls immediately
+    if (pdfControls) {
+        pdfControls.style.display = 'flex';
+        pdfControls.style.visibility = 'visible';
+        pdfControls.style.opacity = '1';
+        console.log('✅ PDF controls shown');
+    }
     
     if (prevBtn && nextBtn) {
         // Remove existing listeners to avoid duplicates
@@ -547,12 +572,6 @@ function initializePageControls() {
             console.log('➡️ Next page clicked, current:', currentPage);
             goToPage(currentPage + 1);
         });
-        
-        // Ensure controls are visible
-        if (pdfControls) {
-            pdfControls.style.display = 'flex';
-            pdfControls.style.visibility = 'visible';
-        }
         
         updatePageDisplay();
         console.log('✅ Page controls initialized with', totalPages, 'pages');
@@ -688,11 +707,17 @@ async function loadPDFFromURL(url, fileName) {
         // Initialize page controls
         initializePageControls();
         
-        // Make sure page controls are visible
+        // Make sure page controls are visible - enhanced visibility
         const pdfControls = document.getElementById('pdf-controls');
         if (pdfControls) {
             pdfControls.style.display = 'flex';
-            console.log('✅ Page controls made visible');
+            pdfControls.style.visibility = 'visible';
+            pdfControls.style.opacity = '1';
+            pdfControls.classList.remove('hidden');
+            console.log('✅ Page controls made visible - total pages:', totalPages);
+            console.log('✅ Current page:', currentPage);
+        } else {
+            console.error('❌ PDF controls element not found!');
         }
         
         // Store references for both views
