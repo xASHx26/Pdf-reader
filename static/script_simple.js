@@ -553,21 +553,6 @@ function updatePageDisplay() {
     if (prevBtn) prevBtn.disabled = currentPage <= 1;
     if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
 }
-        }).promise;
-        
-        // Update highlight canvas if it exists
-        const highlightCanvas = document.getElementById('highlight-canvas');
-        if (highlightCanvas) {
-            highlightCanvas.width = viewport.width;
-            highlightCanvas.height = viewport.height;
-        }
-        
-        console.log('✅ PDF re-rendered at zoom:', Math.round(currentZoom * 100) + '%');
-        
-    } catch (error) {
-        console.error('❌ Error re-rendering PDF at zoom:', error);
-    }
-}
 
 function updateZoomDisplay() {
     const zoomLevel = document.getElementById('zoom-level');
