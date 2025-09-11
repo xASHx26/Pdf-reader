@@ -1146,7 +1146,9 @@ function initializeTTS(text, textItems, canvas) {
     
     // Function to jump to specific sentence when clicked (text view)
     window.jumpToSentence = function(sentenceIndex) {
-        console.log('🎯 Jumping to sentence:', sentenceIndex + 1, 'from current:', currentSentenceIndex + 1);
+        console.log('🎯 DEBUGGING: jumpToSentence called with index:', sentenceIndex);
+        console.log('🎯 Current sentence index before:', currentSentenceIndex);
+        console.log('🎯 Total sentences available:', window.sentences ? window.sentences.length : 'none');
         
         // Stop any current speech
         if (speechSynthesis.speaking) {
@@ -1157,12 +1159,15 @@ function initializeTTS(text, textItems, canvas) {
         currentSentenceIndex = sentenceIndex;
         window.currentSentenceIndex = currentSentenceIndex; // Sync global variable
         
+        console.log('🎯 Current sentence index after setting:', currentSentenceIndex);
+        console.log('🎯 Sentence text:', window.sentences ? window.sentences[sentenceIndex]?.substring(0, 50) + '...' : 'no sentence');
+        
         updateCurrentSentenceDisplay();
         
         if (isReading) {
             // If already reading, continue from this sentence
             console.log('▶️ Continuing reading from clicked sentence:', currentSentenceIndex + 1);
-            speakSentence(sentences[currentSentenceIndex]);
+            speakSentence(window.sentences[currentSentenceIndex]);
         } else {
             // If not reading, just highlight the sentence
             console.log('🎯 Highlighting clicked sentence:', currentSentenceIndex + 1);

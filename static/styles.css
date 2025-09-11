@@ -549,7 +549,7 @@ button:disabled {
 
 /* New styles for PDF controls positioned above the viewer */
 .pdf-controls-top {
-    display: flex;
+    display: flex !important;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
@@ -557,11 +557,13 @@ button:disabled {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .pdf-controls-top .page-controls,
 .pdf-controls-top .zoom-controls {
-    display: flex;
+    display: flex !important;
     align-items: center;
     gap: 8px;
 }
