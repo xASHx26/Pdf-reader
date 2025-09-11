@@ -547,6 +547,60 @@ button:disabled {
     border-radius: 10px;
 }
 
+/* New styles for PDF controls positioned above the viewer */
+.pdf-controls-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.pdf-controls-top .page-controls,
+.pdf-controls-top .zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pdf-controls-top #page-info,
+.pdf-controls-top #zoom-level {
+    font-weight: 600;
+    color: white;
+    font-size: 12px;
+    min-width: 80px;
+    text-align: center;
+}
+
+/* Small button styles */
+.btn-small {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    min-width: 50px !important;
+    height: 28px !important;
+    border-radius: 4px !important;
+    font-weight: 500 !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: #4a5568 !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-small:hover {
+    background: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.btn-small:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
 .page-controls, .zoom-controls {
     display: flex;
     align-items: center;

@@ -33,6 +33,11 @@ let isReading = false;
 let isPaused = false;
 let currentSentenceIndex = 0;
 let sentences = [];
+let currentPage = 1;
+let totalPages = 1;
+let pdfDocument = null;
+let allPagesText = [];
+let allPagesTextItems = [];
 
 function cleanupPreviousSession() {
     
@@ -445,11 +450,14 @@ function zoomPDF(delta) {
 }
 
 async function renderPDFAtZoom() {
-    if (!window.currentPDF) return;
+    if (!pdfDocument || currentPage < 1 || currentPage > totalPages) return;
     
     try {
-        const { page, canvas } = window.currentPDF;
+        const canvas = document.getElementById('pdf-canvas');
         const ctx = canvas.getContext('2d');
+        
+        // Get current page
+        const page = await pdfDocument.getPage(currentPage);
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -463,6 +471,88 @@ async function renderPDFAtZoom() {
         await page.render({
             canvasContext: ctx,
             viewport: viewport
+        }).promise;
+        
+        // Update highlighting for current page if TTS is active
+        if (isReading || currentSentenceIndex > 0) {
+            highlightSentence(currentSentenceIndex);
+        }
+        
+        console.log('✅ PDF re-rendered with zoom:', Math.round(currentZoom * 100) + '%');
+    } catch (error) {
+        console.error('❌ Error re-rendering PDF:', error);
+    }
+}
+
+// New function to render a specific page
+async function renderPage(pageNumber) {
+    if (!pdfDocument || pageNumber < 1 || pageNumber > totalPages) return;
+    
+    try {
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Get page
+        const page = await pdfDocument.getPage(pageNumber);
+        
+        // Set up viewport with current zoom
+        const viewport = page.getViewport({ scale: currentZoom });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        // Render the page
+        await page.render({
+            canvasContext: ctx,
+            viewport: viewport
+        }).promise;
+        
+        // Update page info display
+        updatePageDisplay();
+        
+        console.log('✅ Rendered page:', pageNumber, 'of', totalPages);
+    } catch (error) {
+        console.error('❌ Error rendering page:', error);
+    }
+}
+
+// Initialize page controls
+function initializePageControls() {
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    
+    if (prevBtn && nextBtn) {
+        prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
+        nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
+        
+        updatePageDisplay();
+        console.log('✅ Page controls initialized');
+    }
+}
+
+// Navigate to specific page
+async function goToPage(pageNumber) {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    
+    currentPage = pageNumber;
+    await renderPage(currentPage);
+    
+    // Update page controls state
+    updatePageDisplay();
+}
+
+// Update page display and button states
+function updatePageDisplay() {
+    const currentPageSpan = document.getElementById('current-page');
+    const totalPagesSpan = document.getElementById('total-pages');
+    const prevBtn = document.getElementById('prev-page');
+    const nextBtn = document.getElementById('next-page');
+    
+    if (currentPageSpan) currentPageSpan.textContent = currentPage;
+    if (totalPagesSpan) totalPagesSpan.textContent = totalPages;
+    
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+}
         }).promise;
         
         // Update highlight canvas if it exists
@@ -517,58 +607,59 @@ async function loadPDFFromURL(url, fileName) {
         
         // Load PDF with PDF.js
         console.log('📚 Loading PDF with PDF.js...');
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        console.log('✅ PDF loaded successfully! Pages:', pdf.numPages);
+        pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
+        totalPages = pdfDocument.numPages;
+        currentPage = 1;
+        console.log('✅ PDF loaded successfully! Pages:', totalPages);
         
-        // Get first page
-        const page = await pdf.getPage(1);
-        const canvas = document.getElementById('pdf-canvas');
-        const ctx = canvas.getContext('2d');
+        // Extract text from all pages for complete TTS
+        console.log('📝 Extracting text from all pages...');
+        allPagesText = [];
+        allPagesTextItems = [];
         
-        // Set up viewport and render
-        const viewport = page.getViewport({ scale: 1.0 });
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            const page = await pdfDocument.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            
+            // Create text items with position data for highlighting
+            const pageTextItems = textContent.items.map((item, index) => ({
+                text: item.str,
+                x: item.transform[4],
+                y: item.transform[5],
+                width: item.width || (item.str.length * 8),
+                height: item.height || 12,
+                fontSize: item.transform[0] || 12,
+                index: index,
+                pageNumber: pageNum
+            }));
+            
+            const pageText = pageTextItems.map(item => item.text).join('');
+            allPagesText.push(pageText);
+            allPagesTextItems.push(pageTextItems);
+        }
         
-        console.log('🎨 Rendering PDF page...');
-        await page.render({
-            canvasContext: ctx,
-            viewport: viewport
-        }).promise;
+        // Combine all text for TTS
+        const fullText = allPagesText.join(' ');
+        console.log('✅ Text extracted from all pages, total length:', fullText.length);
         
-        console.log('✅ PDF rendered successfully!');
+        // Render first page
+        await renderPage(currentPage);
         
-        // Extract text for TTS with line positions
-        console.log('📝 Extracting text with positions...');
-        const textContent = await page.getTextContent();
-        
-        // Create text items with position data for highlighting
-        const textItems = textContent.items.map((item, index) => ({
-            text: item.str,
-            x: item.transform[4],
-            y: item.transform[5],
-            width: item.width || (item.str.length * 8), // Estimate width if not provided
-            height: item.height || 12, // Default height
-            fontSize: item.transform[0] || 12, // Font size from transform matrix
-            index: index
-        }));
-        
-        // Build full text while preserving character positions  
-        const fullText = textItems.map(item => item.text).join('');
-        console.log('✅ Text extracted with positions, length:', fullText.length);
-        console.log('📊 Text items count:', textItems.length);
+        // Initialize page controls
+        initializePageControls();
         
         // Store references for both views
         window.currentPDF = {
-            canvas: canvas,
-            textItems: textItems,
+            canvas: document.getElementById('pdf-canvas'),
+            textItems: allPagesTextItems.flat(), // Flatten all page text items
             fullText: fullText,
-            page: page
+            pdfDocument: pdfDocument,
+            allPagesTextItems: allPagesTextItems
         };
         
         // Initialize TTS with extracted text and positions
         if (fullText.trim()) {
-            initializeTTS(fullText, textItems, canvas);
+            initializeTTS(fullText, allPagesTextItems.flat(), document.getElementById('pdf-canvas'));
         }
         
         // Initialize zoom controls
@@ -853,10 +944,56 @@ function initializeTTS(text, textItems, canvas) {
         }
     }
     
+    // Find which page contains a specific sentence
+    function findPageForSentence(sentenceIndex) {
+        if (!window.sentences || !allPagesText) return 1;
+        
+        const targetSentence = window.sentences[sentenceIndex];
+        if (!targetSentence) return currentPage;
+        
+        // Build cumulative text to find sentence position
+        let cumulativeText = '';
+        
+        for (let pageNum = 0; pageNum < allPagesText.length; pageNum++) {
+            const pageText = allPagesText[pageNum];
+            const beforeLength = cumulativeText.length;
+            cumulativeText += ' ' + pageText;
+            
+            // Count sentences in this cumulative text
+            const sentences = cumulativeText.split(/[.!?]+/).filter(s => s.trim().length > 10);
+            
+            if (sentences.length > sentenceIndex) {
+                console.log('📖 Sentence', sentenceIndex + 1, 'found on page', pageNum + 1);
+                return pageNum + 1;
+            }
+        }
+        
+        return currentPage; // Fallback to current page
+    }
+
     function highlightSentence(sentenceIndex) {
+        console.log('🎯 Highlighting sentence:', sentenceIndex + 1);
+        
         // Clear previous highlights
         clearCanvasHighlight();
         
+        // Find which page contains this sentence
+        const targetPage = findPageForSentence(sentenceIndex);
+        
+        // Navigate to the page if needed
+        if (targetPage !== currentPage && totalPages > 1) {
+            console.log('📖 Navigating to page', targetPage, 'for sentence', sentenceIndex + 1);
+            goToPage(targetPage).then(() => {
+                // Highlight after page change
+                performHighlight(sentenceIndex);
+            });
+        } else {
+            // Highlight on current page
+            performHighlight(sentenceIndex);
+        }
+    }
+    
+    function performHighlight(sentenceIndex) {
         if (isTextView) {
             // Highlight in text view
             const sentenceElements = document.querySelectorAll('.text-sentence');
