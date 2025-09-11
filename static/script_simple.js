@@ -39,6 +39,24 @@ let pdfDocument = null;
 let allPagesText = [];
 let allPagesTextItems = [];
 
+// Force show page controls immediately
+window.addEventListener('DOMContentLoaded', function() {
+    const pdfControls = document.getElementById('pdf-controls');
+    if (pdfControls) {
+        pdfControls.style.display = 'flex';
+        pdfControls.style.visibility = 'visible';
+        console.log('🔧 FORCE: PDF controls made visible on page load');
+    }
+});
+
+// Add a global function to manually update page count (for testing)
+window.forceUpdatePageCount = function(pages) {
+    totalPages = pages || 1;
+    currentPage = 1;
+    updatePageDisplay();
+    console.log('🔧 FORCE: Updated page count to', totalPages);
+};
+
 function cleanupPreviousSession() {
     
     const notification = document.createElement('div');
@@ -354,6 +372,27 @@ async function loadPDFFile(file) {
         console.log('✅ PDF loaded successfully! Pages:', totalPages);
         console.log('📊 Load method: File Input (Standard)');
         
+        // IMMEDIATE PAGE CONTROL UPDATE
+        console.log('🔧 IMMEDIATE: Updating page display with', totalPages, 'pages');
+        const currentPageSpan = document.getElementById('current-page');
+        const totalPagesSpan = document.getElementById('total-pages');
+        if (currentPageSpan) {
+            currentPageSpan.textContent = currentPage;
+            console.log('🔧 IMMEDIATE: Set current page to', currentPage);
+        }
+        if (totalPagesSpan) {
+            totalPagesSpan.textContent = totalPages;
+            console.log('🔧 IMMEDIATE: Set total pages to', totalPages);
+        }
+        
+        // Force show controls again
+        const pdfControls = document.getElementById('pdf-controls');
+        if (pdfControls) {
+            pdfControls.style.display = 'flex';
+            pdfControls.style.visibility = 'visible';
+            console.log('🔧 IMMEDIATE: PDF controls forced visible');
+        }
+        
         // Extract text from all pages for complete TTS
         console.log('📝 Extracting text from all pages...');
         allPagesText = [];
@@ -546,12 +585,16 @@ function initializePageControls() {
         pdfControls: !!pdfControls
     });
     
-    // Show the controls immediately
+    // Show the controls immediately - FORCE VISIBILITY
     if (pdfControls) {
-        pdfControls.style.display = 'flex';
-        pdfControls.style.visibility = 'visible';
-        pdfControls.style.opacity = '1';
-        console.log('✅ PDF controls shown');
+        pdfControls.style.display = 'flex !important';
+        pdfControls.style.visibility = 'visible !important';
+        pdfControls.style.opacity = '1 !important';
+        pdfControls.style.height = 'auto !important';
+        pdfControls.style.position = 'relative !important';
+        pdfControls.style.zIndex = '1000 !important';
+        pdfControls.classList.remove('hidden');
+        console.log('🔥 PDF CONTROLS FORCED TO BE VISIBLE');
     }
     
     if (prevBtn && nextBtn) {
@@ -597,6 +640,18 @@ function updatePageDisplay() {
     const totalPagesSpan = document.getElementById('total-pages');
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
+    
+    // FORCE PAGE CONTROLS TO BE VISIBLE
+    const pdfControls = document.getElementById('pdf-controls');
+    if (pdfControls) {
+        pdfControls.style.display = 'flex !important';
+        pdfControls.style.visibility = 'visible !important';
+        pdfControls.style.opacity = '1 !important';
+        pdfControls.style.height = 'auto !important';
+        pdfControls.style.position = 'relative !important';
+        pdfControls.classList.remove('hidden');
+        console.log('🔥 FORCING PAGE CONTROLS TO BE VISIBLE');
+    }
     
     console.log('📊 Updating page display:', currentPage, 'of', totalPages);
     
