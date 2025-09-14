@@ -497,8 +497,7 @@ async function loadPDFFile(file) {
             console.log('✅ Updated header page info:', currentPage, 'of', totalPages);
         }
         
-        // 🔥 FORCE SHOW PAGE CONTROLS
-        forceShowPageControls();
+    // 🔥 FORCE SHOW PAGE CONTROLS (removed, no longer needed)
         
         // Make sure page controls are visible - enhanced visibility
         const pdfControlsCheck = document.getElementById('pdf-controls');
