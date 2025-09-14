@@ -1,6 +1,320 @@
 // Simple test script
 console.log('🚀 PDF Reader Script Loading...');
 
+// 🔥 SIMPLE MULTI-PAGE FUNCTION - Force show page controls
+function forceShowPageControls() {
+    console.log('🔥 FORCING PAGE CONTROLS TO APPEAR...');
+    
+    const pdfControls = document.getElementById('pdf-controls');
+    if (pdfControls) {
+        // Force visibility with inline styles
+        pdfControls.style.cssText = `
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            background: #f0f0f0 !important;
+            padding: 10px !important;
+            margin: 10px 0 !important;
+            border: 2px solid #007acc !important;
+            border-radius: 5px !important;
+            z-index: 9999 !important;
+        `;
+        console.log('✅ Page controls forced to be visible');
+        
+        // Initialize the simple page navigation
+        initializeSimplePageNavigation();
+        
+        return true;
+    } else {
+        console.error('❌ PDF controls element not found!');
+        return false;
+    }
+}
+
+// 🔥 SIMPLE PAGE NAVIGATION - Initialize the up/down buttons
+function initializeSimplePageNavigation() {
+    console.log('🔥 Initializing simple page navigation...');
+    
+    const pageUpBtn = document.getElementById('page-up');
+    const pageDownBtn = document.getElementById('page-down');
+    const pageDisplay = document.getElementById('page-display');
+    
+    if (pageUpBtn && pageDownBtn && pageDisplay) {
+        // Update display
+        pageDisplay.textContent = `Page ${currentPage || 1}/${totalPages || 1}`;
+        
+        // Page Up (Previous) button
+        pageUpBtn.onclick = function() {
+            console.log('📖 Page Up clicked, current page:', currentPage);
+            if (currentPage > 1) {
+                goToPageSimple(currentPage - 1);
+            }
+        };
+        
+        // Page Down (Next) button
+        pageDownBtn.onclick = function() {
+            console.log('📖 Page Down clicked, current page:', currentPage);
+            if (currentPage < totalPages) {
+                goToPageSimple(currentPage + 1);
+            }
+        };
+        
+        console.log('✅ Simple page navigation initialized');
+    } else {
+        console.warn('⚠️ Simple page navigation buttons not found');
+    }
+}
+
+// 🔥 GO TO PAGE SIMPLE - Navigate to specific page and restart audio if needed
+async function goToPageSimple(pageNumber) {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    
+    console.log(`🔄 Switching to page ${pageNumber} of ${totalPages}`);
+    
+    // Update current page
+    currentPage = pageNumber;
+    
+    // Render the new page
+    await renderPage(currentPage);
+    
+    // Update page display
+    const pageDisplay = document.getElementById('page-display');
+    if (pageDisplay) {
+        pageDisplay.textContent = `Page ${currentPage}/${totalPages}`;
+    }
+    
+    // Update button states
+    const pageUpBtn = document.getElementById('page-up');
+    const pageDownBtn = document.getElementById('page-down');
+    if (pageUpBtn) pageUpBtn.disabled = currentPage <= 1;
+    if (pageDownBtn) pageDownBtn.disabled = currentPage >= totalPages;
+    
+    // If reading is active, restart from first line of new page
+    if (isReading) {
+        console.log('🎵 Reading is active, restarting audio from first line of new page');
+        speechSynthesis.cancel();
+        
+        // Wait a moment for page to render, then restart reading
+        setTimeout(() => {
+            currentSentenceIndex = 0;
+            isReading = false;
+            isPaused = false;
+            
+            // Restart reading
+            startReading();
+        }, 500);
+    }
+    
+    console.log(`✅ Switched to page ${currentPage}`);
+}
+
+// Call this function when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔥 PAGE LOADED - INITIALIZING FIXED PAGE CONTROLS');
+    
+    // Initialize fixed page controls (top-right corner)
+    initializeFixedPageControls();
+    
+    // Initialize header page navigation
+    initializeHeaderPageNavigation();
+    
+    setTimeout(forceShowPageControls, 500);
+    setTimeout(forceShowPageControls, 1000);
+    setTimeout(forceShowPageControls, 2000);
+    
+    // FORCE PAGE BUTTONS TO APPEAR IMMEDIATELY
+    setTimeout(function() {
+        const pageUp = document.getElementById('page-up');
+        const pageDown = document.getElementById('page-down');
+        const pageDisplay = document.getElementById('page-display');
+        const pageNavSimple = document.querySelector('.page-nav-simple');
+        
+        if (pageNavSimple) {
+            pageNavSimple.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; background: red !important; padding: 10px !important; border: 3px solid yellow !important;';
+            console.log('🔥 FORCED PAGE NAV CONTAINER TO BE VISIBLE');
+        }
+        
+        if (pageUp) {
+            pageUp.style.cssText = 'display: block !important; visibility: visible !important; background: #007acc !important; color: white !important; padding: 8px 12px !important; border: 2px solid green !important;';
+            console.log('🔥 FORCED PAGE UP BUTTON TO BE VISIBLE');
+        }
+        
+        if (pageDown) {
+            pageDown.style.cssText = 'display: block !important; visibility: visible !important; background: #007acc !important; color: white !important; padding: 8px 12px !important; border: 2px solid green !important;';
+            console.log('🔥 FORCED PAGE DOWN BUTTON TO BE VISIBLE');
+        }
+        
+        if (pageDisplay) {
+            pageDisplay.style.cssText = 'display: block !important; visibility: visible !important; color: white !important; font-weight: bold !important; background: blue !important; padding: 5px !important;';
+            console.log('🔥 FORCED PAGE DISPLAY TO BE VISIBLE');
+        }
+    }, 100);
+});
+
+// 🔥 FIXED PAGE CONTROLS - Top-right corner buttons that are definitely visible
+function initializeFixedPageControls() {
+    console.log('🔥 Initializing fixed page controls...');
+    
+    const prevBtnFixed = document.getElementById('prev-page-fixed');
+    const nextBtnFixed = document.getElementById('next-page-fixed');
+    const pageCountFixed = document.getElementById('page-count-fixed');
+    
+    if (prevBtnFixed && nextBtnFixed && pageCountFixed) {
+        console.log('✅ Fixed page navigation elements found');
+        
+        // Update display
+        pageCountFixed.textContent = `PAGE ${currentPage || 1}/${totalPages || 1}`;
+        
+        // Previous Page button
+        prevBtnFixed.onclick = function() {
+            console.log('📖 Fixed Prev Page clicked, current page:', currentPage);
+            if (currentPage > 1) {
+                goToPageFixed(currentPage - 1);
+            }
+        };
+        
+        // Next Page button
+        nextBtnFixed.onclick = function() {
+            console.log('📖 Fixed Next Page clicked, current page:', currentPage);
+            if (currentPage < totalPages) {
+                goToPageFixed(currentPage + 1);
+            }
+        };
+        
+        console.log('✅ Fixed page navigation initialized');
+    } else {
+        console.warn('⚠️ Fixed page navigation buttons not found');
+    }
+}
+
+// 🔥 GO TO PAGE FIXED - Navigate to specific page from fixed controls
+async function goToPageFixed(pageNumber) {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    
+    console.log(`🔄 Fixed: Switching to page ${pageNumber} of ${totalPages}`);
+    
+    // Update current page
+    currentPage = pageNumber;
+    
+    // Render the new page
+    await renderPage(currentPage);
+    
+    // Update all page displays
+    const pageCountFixed = document.getElementById('page-count-fixed');
+    const pageInfoHeader = document.getElementById('page-info-header');
+    
+    if (pageCountFixed) {
+        pageCountFixed.textContent = `PAGE ${currentPage}/${totalPages}`;
+    }
+    if (pageInfoHeader) {
+        pageInfoHeader.textContent = `Page ${currentPage}/${totalPages}`;
+    }
+    
+    // Update button states
+    const prevBtnFixed = document.getElementById('prev-page-fixed');
+    const nextBtnFixed = document.getElementById('next-page-fixed');
+    if (prevBtnFixed) prevBtnFixed.disabled = currentPage <= 1;
+    if (nextBtnFixed) nextBtnFixed.disabled = currentPage >= totalPages;
+    
+    // If reading is active, restart from first line of new page
+    if (isReading) {
+        console.log('🎵 Reading is active, restarting audio from first line of new page');
+        speechSynthesis.cancel();
+        
+        // Wait a moment for page to render, then restart reading
+        setTimeout(() => {
+            currentSentenceIndex = 0;
+            isReading = false;
+            isPaused = false;
+            
+            // Restart reading
+            startReading();
+        }, 500);
+    }
+    
+    console.log(`✅ Fixed: Switched to page ${currentPage}`);
+}
+
+// 🔥 HEADER PAGE NAVIGATION - Initialize the header page buttons
+function initializeHeaderPageNavigation() {
+    console.log('🔥 Initializing header page navigation...');
+    
+    const pagePrevBtn = document.getElementById('page-prev-header');
+    const pageNextBtn = document.getElementById('page-next-header');
+    const pageInfoHeader = document.getElementById('page-info-header');
+    
+    if (pagePrevBtn && pageNextBtn && pageInfoHeader) {
+        console.log('✅ Header page navigation elements found');
+        
+        // Update display
+        pageInfoHeader.textContent = `Page ${currentPage || 1}/${totalPages || 1}`;
+        
+        // Previous Page button
+        pagePrevBtn.onclick = function() {
+            console.log('📖 Header Prev Page clicked, current page:', currentPage);
+            if (currentPage > 1) {
+                goToPageHeader(currentPage - 1);
+            }
+        };
+        
+        // Next Page button
+        pageNextBtn.onclick = function() {
+            console.log('📖 Header Next Page clicked, current page:', currentPage);
+            if (currentPage < totalPages) {
+                goToPageHeader(currentPage + 1);
+            }
+        };
+        
+        console.log('✅ Header page navigation initialized');
+    } else {
+        console.warn('⚠️ Header page navigation buttons not found');
+    }
+}
+
+// 🔥 GO TO PAGE HEADER - Navigate to specific page from header
+async function goToPageHeader(pageNumber) {
+    if (pageNumber < 1 || pageNumber > totalPages) return;
+    
+    console.log(`🔄 Header: Switching to page ${pageNumber} of ${totalPages}`);
+    
+    // Update current page
+    currentPage = pageNumber;
+    
+    // Render the new page
+    await renderPage(currentPage);
+    
+    // Update header page display
+    const pageInfoHeader = document.getElementById('page-info-header');
+    if (pageInfoHeader) {
+        pageInfoHeader.textContent = `Page ${currentPage}/${totalPages}`;
+    }
+    
+    // Update button states
+    const pagePrevBtn = document.getElementById('page-prev-header');
+    const pageNextBtn = document.getElementById('page-next-header');
+    if (pagePrevBtn) pagePrevBtn.disabled = currentPage <= 1;
+    if (pageNextBtn) pageNextBtn.disabled = currentPage >= totalPages;
+    
+    // If reading is active, restart from first line of new page
+    if (isReading) {
+        console.log('🎵 Reading is active, restarting audio from first line of new page');
+        speechSynthesis.cancel();
+        
+        // Wait a moment for page to render, then restart reading
+        setTimeout(() => {
+            currentSentenceIndex = 0;
+            isReading = false;
+            isPaused = false;
+            
+            // Restart reading
+            startReading();
+        }, 500);
+    }
+    
+    console.log(`✅ Header: Switched to page ${currentPage}`);
+}
+
 // Test functions
 window.testFileInput = function() {
     console.log('=== MANUAL FILE INPUT TEST ===');
@@ -38,6 +352,10 @@ let totalPages = 1;
 let pdfDocument = null;
 let allPagesText = [];
 let allPagesTextItems = [];
+// Multi-page sentence mapping helpers
+let sentencePageMap = []; // sentenceIndex -> pageNumber
+let perPageSentences = []; // pageNumber -> array of sentence indexes
+let perPageTextItems = []; // pageNumber -> text items array
 
 // Force show page controls immediately
 window.addEventListener('DOMContentLoaded', function() {
@@ -372,6 +690,31 @@ async function loadPDFFile(file) {
         console.log('✅ PDF loaded successfully! Pages:', totalPages);
         console.log('📊 Load method: File Input (Standard)');
         
+        // 🔥 FORCE MULTI-PAGE: Make sure we always show page controls
+        console.log('🔥 FORCING MULTI-PAGE CONTROLS TO APPEAR');
+        
+        // Force show the page controls immediately
+        const pdfControlsElement = document.getElementById('pdf-controls');
+        if (pdfControlsElement) {
+            pdfControlsElement.style.cssText = 'display: flex !important; visibility: visible !important; opacity: 1 !important; position: relative !important; background: white !important; padding: 10px !important; border: 2px solid red !important;';
+            console.log('🔥 FORCED PAGE CONTROLS TO BE VISIBLE WITH RED BORDER');
+        }
+        
+        // Force update page display
+        setTimeout(() => {
+            const currentPageEl = document.getElementById('current-page');
+            const totalPagesEl = document.getElementById('total-pages');
+            const pageCountFixed = document.getElementById('page-count-fixed');
+            const pageInfoHeader = document.getElementById('page-info-header');
+            
+            if (currentPageEl) currentPageEl.textContent = currentPage;
+            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+            if (pageCountFixed) pageCountFixed.textContent = `PAGE ${currentPage}/${totalPages}`;
+            if (pageInfoHeader) pageInfoHeader.textContent = `Page ${currentPage}/${totalPages}`;
+            
+            console.log('🔥 FORCED ALL PAGE DISPLAYS UPDATE:', currentPage, 'of', totalPages);
+        }, 100);
+        
         // IMMEDIATE PAGE CONTROL UPDATE
         console.log('🔧 IMMEDIATE: Updating page display with', totalPages, 'pages');
         const currentPageSpan = document.getElementById('current-page');
@@ -422,6 +765,35 @@ async function loadPDFFile(file) {
         // Combine all text for TTS
         const fullText = allPagesText.join(' ');
         console.log('✅ Text extracted from all pages, total length:', fullText.length);
+
+        // Build sentence -> page mapping (handles cross-page sentences approximately)
+        sentencePageMap = [];
+        perPageSentences = Array.from({ length: totalPages + 1 }, () => []); // 1-based pages
+        
+        // Pre-compute cumulative page offsets
+        const pageOffsets = [];
+        let cumulativeChars = 0;
+        for (let i = 0; i < allPagesText.length; i++) {
+            cumulativeChars += allPagesText[i].length + 1; // +1 for added space
+            pageOffsets.push(cumulativeChars);
+        }
+        
+        // Split sentences once globally
+        const splitSentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        window.sentences = splitSentences;
+        
+        // Map each sentence to a page by its end character position
+        let runningCharPos = 0;
+        splitSentences.forEach((sent, idx) => {
+            runningCharPos += sent.length + 1; // include delimiter
+            // Find first page whose offset exceeds runningCharPos
+            let pageNum = pageOffsets.findIndex(off => runningCharPos <= off) + 1;
+            if (pageNum < 1) pageNum = 1;
+            if (pageNum > totalPages) pageNum = totalPages;
+            sentencePageMap[idx] = pageNum;
+            perPageSentences[pageNum].push(idx);
+        });
+        console.log('🗺️ Sentence to page mapping built. Total sentences:', splitSentences.length);
         
         // Render first page
         await renderPage(currentPage);
@@ -432,13 +804,23 @@ async function loadPDFFile(file) {
         // Initialize page controls
         initializePageControls();
         
+        // 🔥 UPDATE HEADER PAGE NAVIGATION
+        const pageInfoHeader = document.getElementById('page-info-header');
+        if (pageInfoHeader) {
+            pageInfoHeader.textContent = `Page ${currentPage}/${totalPages}`;
+            console.log('✅ Updated header page info:', currentPage, 'of', totalPages);
+        }
+        
+        // 🔥 FORCE SHOW PAGE CONTROLS
+        forceShowPageControls();
+        
         // Make sure page controls are visible - enhanced visibility
-        const pdfControls = document.getElementById('pdf-controls');
-        if (pdfControls) {
-            pdfControls.style.display = 'flex';
-            pdfControls.style.visibility = 'visible';
-            pdfControls.style.opacity = '1';
-            pdfControls.classList.remove('hidden');
+        const pdfControlsCheck = document.getElementById('pdf-controls');
+        if (pdfControlsCheck) {
+            pdfControlsCheck.style.display = 'flex';
+            pdfControlsCheck.style.visibility = 'visible';
+            pdfControlsCheck.style.opacity = '1';
+            pdfControlsCheck.classList.remove('hidden');
             console.log('✅ Page controls made visible - total pages:', totalPages);
             console.log('✅ Current page:', currentPage);
         } else {
@@ -454,7 +836,7 @@ async function loadPDFFile(file) {
             allPagesTextItems: allPagesTextItems
         };
         
-        // Initialize TTS with extracted text and positions
+        // Initialize TTS with already-split sentences
         if (fullText.trim()) {
             initializeTTS(fullText, allPagesTextItems.flat(), document.getElementById('pdf-canvas'));
         }
@@ -690,6 +1072,17 @@ function updateZoomDisplay() {
     }
 }
 
+// Helper: get text items for current page
+function getCurrentPageTextItems() {
+    if (allPagesTextItems && allPagesTextItems[currentPage - 1]) {
+        return allPagesTextItems[currentPage - 1];
+    }
+    if (window.currentPDF && window.currentPDF.textItems) {
+        return window.currentPDF.textItems.filter(it => it.pageNumber === currentPage);
+    }
+    return [];
+}
+
 // Load PDF from server URL
 async function loadPDFFromURL(url, fileName) {
     try {
@@ -803,10 +1196,13 @@ async function loadPDFFromURL(url, fileName) {
 // Enhanced TTS initialization with dual view support
 function initializeTTS(text, textItems, canvas) {
     console.log('🎤 Initializing enhanced TTS with text length:', text.length);
-    
-    // Split text into sentences with better parsing and store globally
-    window.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
-    console.log('📋 Sentences found:', window.sentences.length);
+    // Sentences may already be prepared (multi-page mapping phase)
+    if (!window.sentences || !Array.isArray(window.sentences) || window.sentences.length === 0) {
+        window.sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        console.log('📋 Sentences split inside initializeTTS:', window.sentences.length);
+    } else {
+        console.log('♻️ Reusing precomputed sentences:', window.sentences.length);
+    }
     
     let currentSentenceIndex = 0;
     let currentUtterance = null;
@@ -1073,28 +1469,13 @@ function initializeTTS(text, textItems, canvas) {
     
     // Find which page contains a specific sentence - improved algorithm
     function findPageForSentence(sentenceIndex) {
+        if (sentencePageMap && sentencePageMap[sentenceIndex]) {
+            return sentencePageMap[sentenceIndex];
+        }
+        // Fallback: basic heuristic
         if (!window.sentences || !allPagesText || sentenceIndex < 0) return 1;
-        
-        // Calculate character position of the sentence in the full text
-        let charPosition = 0;
-        for (let i = 0; i < sentenceIndex; i++) {
-            if (window.sentences[i]) {
-                charPosition += window.sentences[i].length + 1; // +1 for sentence delimiter
-            }
-        }
-        
-        // Find which page contains this character position
-        let cumulativeLength = 0;
-        for (let pageNum = 0; pageNum < allPagesText.length; pageNum++) {
-            const pageLength = allPagesText[pageNum].length;
-            if (charPosition <= cumulativeLength + pageLength) {
-                console.log('📖 Sentence', sentenceIndex + 1, 'found on page', pageNum + 1, 'at char pos', charPosition);
-                return pageNum + 1;
-            }
-            cumulativeLength += pageLength + 1; // +1 for space between pages
-        }
-        
-        return Math.min(totalPages, Math.max(1, currentPage)); // Safe fallback
+        const approx = Math.ceil(((sentenceIndex + 1) / window.sentences.length) * totalPages);
+        return Math.min(totalPages, Math.max(1, approx));
     }
 
     function highlightSentence(sentenceIndex) {
@@ -1473,6 +1854,7 @@ function highlightOnCanvas(sentenceIndex) {
     const matchingItems = [];
     
     window.currentPDF.textItems.forEach(item => {
+        if (item.pageNumber && item.pageNumber !== currentPage) return; // only current page
         const itemText = (item.str || item.text || '').trim().toLowerCase();
         
         if (itemText.length > 0) {
