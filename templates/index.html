@@ -12,12 +12,14 @@
         <!-- Header -->
         <header class="header">
             <h1>PDF Reader <span class="server-badge">Text-to-Speech</span></h1>
+            
             <div class="header-controls">
                 <label for="file-input" class="file-input-label">
                     <input type="file" id="file-input" accept=".pdf" title="Select PDF file">
                 </label>
                 <button id="openPdfBtn" class="btn btn-primary">Open PDF</button>
                 <button id="historyBtn" class="btn btn-secondary">History</button>
+                <button id="textViewBtn" class="btn btn-secondary">📄 Text View</button>
             </div>
         </header>
 
@@ -52,11 +54,10 @@
                             <span id="zoom-level">150%</span>
                             <button id="zoom-in" class="btn btn-small">+</button>
                         </div>
-                        <div class="page-controls">
-                            <button id="prev-page" class="btn btn-small">← Prev</button>
-                            <span id="page-info">Page <span id="current-page">1</span> of <span id="total-pages">1</span></span>
-                            <button id="next-page" class="btn btn-small">Next →</button>
-                        </div>
+                        
+                        <button id="page-up" class="btn btn-small" style="display: block !important; visibility: visible !important; background: #007acc !important; color: white !important; padding: 8px 12px !important;">↑ Page Up</button>
+                        <span id="page-display" style="display: block !important; visibility: visible !important; color: white !important; font-weight: bold !important;">Page 1/1</span>
+                        <button id="page-down" class="btn btn-small" style="display: block !important; visibility: visible !important; background: #007acc !important; color: white !important; padding: 8px 12px !important;">↓ Page Down</button>
                     </div>
                     
                     <div id="pdf-container" class="pdf-container hidden">
