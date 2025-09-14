@@ -44,6 +44,23 @@ let perPageSentences = []; // pageNumber -> array of sentence indexes
 let perPageTextItems = []; // pageNumber -> text items array
 
 // Force show page controls immediately
+
+// Initialize page navigation controls (page-up/page-down)
+function initPageNavigation() {
+    const pageUpBtn = document.getElementById('page-up');
+    const pageDownBtn = document.getElementById('page-down');
+    if (pageUpBtn) {
+        pageUpBtn.addEventListener('click', () => {
+            goToPage(currentPage - 1);
+        });
+    }
+    if (pageDownBtn) {
+        pageDownBtn.addEventListener('click', () => {
+            goToPage(currentPage + 1);
+        });
+    }
+}
+
 window.addEventListener('DOMContentLoaded', function() {
     const pdfControls = document.getElementById('pdf-controls');
     if (pdfControls) {
@@ -51,6 +68,7 @@ window.addEventListener('DOMContentLoaded', function() {
         pdfControls.style.visibility = 'visible';
         console.log('🔧 FORCE: PDF controls made visible on page load');
     }
+    initPageNavigation();
 });
 
 // Add a global function to manually update page count (for testing)
@@ -371,7 +389,7 @@ async function loadPDFFile(file) {
         // Load PDF with PDF.js
         console.log('📚 Loading PDF with PDF.js...');
         pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
-        totalPages = pdfDocument.numPages;
+    totalPages = pdfDocument.numPages;
         currentPage = 1;
         console.log('✅ PDF loaded successfully! Pages:', totalPages);
         console.log('📊 Load method: File Input (Standard)');
@@ -386,41 +404,11 @@ async function loadPDFFile(file) {
             console.log('🔥 FORCED PAGE CONTROLS TO BE VISIBLE WITH RED BORDER');
         }
         
-        // Force update page display
-        setTimeout(() => {
-            const currentPageEl = document.getElementById('current-page');
-            const totalPagesEl = document.getElementById('total-pages');
-            const pageCountFixed = document.getElementById('page-count-fixed');
-            const pageInfoHeader = document.getElementById('page-info-header');
-            
-            if (currentPageEl) currentPageEl.textContent = currentPage;
-            if (totalPagesEl) totalPagesEl.textContent = totalPages;
-            if (pageCountFixed) pageCountFixed.textContent = `PAGE ${currentPage}/${totalPages}`;
-            if (pageInfoHeader) pageInfoHeader.textContent = `Page ${currentPage}/${totalPages}`;
-            
-            console.log('🔥 FORCED ALL PAGE DISPLAYS UPDATE:', currentPage, 'of', totalPages);
-        }, 100);
+    // Update unified page display once
+    updatePageDisplay();
         
-        // IMMEDIATE PAGE CONTROL UPDATE
-        console.log('🔧 IMMEDIATE: Updating page display with', totalPages, 'pages');
-        const currentPageSpan = document.getElementById('current-page');
-        const totalPagesSpan = document.getElementById('total-pages');
-        if (currentPageSpan) {
-            currentPageSpan.textContent = currentPage;
-            console.log('🔧 IMMEDIATE: Set current page to', currentPage);
-        }
-        if (totalPagesSpan) {
-            totalPagesSpan.textContent = totalPages;
-            console.log('🔧 IMMEDIATE: Set total pages to', totalPages);
-        }
-        
-        // Force show controls again
-        const pdfControls = document.getElementById('pdf-controls');
-        if (pdfControls) {
-            pdfControls.style.display = 'flex';
-            pdfControls.style.visibility = 'visible';
-            console.log('🔧 IMMEDIATE: PDF controls forced visible');
-        }
+    // Update unified page display
+    updatePageDisplay();
         
         // Extract text from all pages for complete TTS
         console.log('📝 Extracting text from all pages...');
@@ -664,30 +652,7 @@ function initializePageControls() {
         console.log('🔥 PDF CONTROLS FORCED TO BE VISIBLE');
     }
     
-    if (prevBtn && nextBtn) {
-        // Remove existing listeners to avoid duplicates
-        prevBtn.replaceWith(prevBtn.cloneNode(true));
-        nextBtn.replaceWith(nextBtn.cloneNode(true));
-        
-        // Get fresh references
-        const newPrevBtn = document.getElementById('prev-page');
-        const newNextBtn = document.getElementById('next-page');
-        
-        newPrevBtn.addEventListener('click', () => {
-            console.log('⬅️ Previous page clicked, current:', currentPage);
-            goToPage(currentPage - 1);
-        });
-        
-        newNextBtn.addEventListener('click', () => {
-            console.log('➡️ Next page clicked, current:', currentPage);
-            goToPage(currentPage + 1);
-        });
-        
-        updatePageDisplay();
-        console.log('✅ Page controls initialized with', totalPages, 'pages');
-    } else {
-        console.warn('⚠️ Page control buttons not found in DOM');
-    }
+    // Old prev/next button logic removed
 }
 
 // Navigate to specific page
@@ -703,51 +668,20 @@ async function goToPage(pageNumber) {
 
 // Update page display and button states
 function updatePageDisplay() {
-    const currentPageSpan = document.getElementById('current-page');
-    const totalPagesSpan = document.getElementById('total-pages');
-    const prevBtn = document.getElementById('prev-page');
-    const nextBtn = document.getElementById('next-page');
-    
-    // FORCE PAGE CONTROLS TO BE VISIBLE
-    const pdfControls = document.getElementById('pdf-controls');
-    if (pdfControls) {
-        pdfControls.style.display = 'flex !important';
-        pdfControls.style.visibility = 'visible !important';
-        pdfControls.style.opacity = '1 !important';
-        pdfControls.style.height = 'auto !important';
-        pdfControls.style.position = 'relative !important';
-        pdfControls.classList.remove('hidden');
-        console.log('🔥 FORCING PAGE CONTROLS TO BE VISIBLE');
+    const display = document.getElementById('page-display');
+    const upBtn = document.getElementById('page-up');
+    const downBtn = document.getElementById('page-down');
+    if (display) {
+        display.textContent = `Page ${currentPage}/${totalPages}`;
     }
-    
-    console.log('📊 Updating page display:', currentPage, 'of', totalPages);
-    
-    if (currentPageSpan) {
-        currentPageSpan.textContent = currentPage;
-        console.log('✅ Updated current page display to:', currentPage);
+    if (upBtn) {
+        upBtn.disabled = currentPage <= 1;
+        upBtn.style.opacity = upBtn.disabled ? '0.5' : '1';
     }
-    
-    if (totalPagesSpan) {
-        totalPagesSpan.textContent = totalPages;
-        console.log('✅ Updated total pages display to:', totalPages);
+    if (downBtn) {
+        downBtn.disabled = currentPage >= totalPages;
+        downBtn.style.opacity = downBtn.disabled ? '0.5' : '1';
     }
-    
-    if (prevBtn) {
-        prevBtn.disabled = currentPage <= 1;
-        prevBtn.style.opacity = prevBtn.disabled ? '0.5' : '1';
-    }
-    
-    if (nextBtn) {
-        nextBtn.disabled = currentPage >= totalPages;
-        nextBtn.style.opacity = nextBtn.disabled ? '0.5' : '1';
-    }
-    
-    console.log('🎮 Page controls state:', {
-        currentPage: currentPage,
-        totalPages: totalPages,
-        prevDisabled: currentPage <= 1,
-        nextDisabled: currentPage >= totalPages
-    });
 }
 
 function updateZoomDisplay() {
@@ -800,9 +734,10 @@ async function loadPDFFromURL(url, fileName) {
         // Load PDF with PDF.js
         console.log('📚 Loading PDF with PDF.js...');
         pdfDocument = await pdfjsLib.getDocument(arrayBuffer).promise;
-        totalPages = pdfDocument.numPages;
+    totalPages = pdfDocument.numPages;
         currentPage = 1;
         console.log('✅ PDF loaded successfully! Pages:', totalPages);
+    updatePageDisplay();
         
         // Extract text from all pages for complete TTS
         console.log('📝 Extracting text from all pages...');
